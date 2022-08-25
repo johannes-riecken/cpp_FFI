@@ -88,6 +88,49 @@ sub toTypeSpec {
   return join ' -> ', toTypes($params);
 }
 
-print join "\n", generateCWrapper('adjacent_find', ['f', 'l', 'comp']);
+sub parseSignatures {
+    my ($f_in) = @_;
+    my @sigs;
+    while (<$f_in>) {
+        if (!!1 .. $_ eq qq!extern "C" {\n!) {
+            if (/^auto (\w++)\(([^\(\)]*+)\) \{$/) {
+                my $fn = $1;
+                my $params_str = $2;
+                my @params = map { s/^auto ([[:alpha:]]++).*+/$1/r } split ', ', $params_str;
+                push @sigs, [$fn, \@params];
+            }
+        }
+    }
+    return @sigs;
+}
+
+sub generateHaskell {
+    my ($f_in, $f_out, $sigs) = @_;
+    while (<$f_in>) {
+        # if (my $ff = $_ eq "-- AUTOGEN BEGIN\n" .. $_ eq "-- AUTOGEN END\n") {
+        if (my $ff = $_ eq "-- AUTOGEN BEGIN\n" .. $_ eq "-- AUTOGEN END\n") {
+            next unless $ff == 1 or 'E0' eq substr $ff, -2;
+            if ($ff == 1) {
+                for my $sig ($sigs->@*) {
+                    print {$f_out} generateProperties($sig->[0], $sig->[1]);
+                }
+            }
+        } else {
+            print {$f_out} $_;
+        }
+    }
+}
+
+sub main {
+    open my $f_cpp, '<', 'algorithm.cpp';
+    my @sigs = parseSignatures($f_cpp);
+    rename 'Algo.hs', 'Algo.hs.bak';
+    open my $f_in, '<', 'Algo.hs.bak';
+    open my $f_out, '>', 'Algo.hs';
+    generateHaskell($f_in, $f_out, \@sigs);
+    print join "\n", generateCWrapper('adjacent_find', ['f', 'l', 'comp']);
+}
+
+main() unless caller;
 
 1;
