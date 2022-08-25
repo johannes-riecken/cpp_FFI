@@ -30,15 +30,25 @@ sub generateProperties {
   my ($fn, $params) = @_;
   my $ret = '';
   for ('', 'my_') {
-    $ret .= qq{foreign import ccall "hs_$_$fn" $_$fn :: } . toTypeSpec($params) . " -> " . derefRetTypeForHs($fn) . "\n";
+    $ret .= qq{foreign import ccall "hs_$_$fn" $_$fn :: } . toForeignTypeSpec($params) . " -> " . derefRetTypeForHs($fn) . "\n";
     $ret .= "\n";
   }
-  $ret .= "prop_$fn :: [CInt]" . (grep('comp', $params->@*) && ' -> Fun (CInt,CInt) CBool') . " -> Property\n";
-  $ret .= "prop_$fn xs (Fn2 p) = unsafePerformIO \$ do\n";
+  my @types = toPropTypes($params);
+  $ret .= "prop_$fn :: @{[toPropTypeSpec($params)]}\n";
+  $ret .= "prop_$fn @{[toPropParamsStr(\@types)]} = unsafePerformIO \$ do\n";
   $ret .= "    let p' x y = if x == y then 1 else 0\n";
-  $ret .= "    xs' <- newArray xs\n";
-  $ret .= "    cmp <- mkCompare p\n";
-  $ret .= "    pure \$ $fn xs' (genericLength xs) cmp === my_$fn xs' (genericLength xs) cmp\n";
+  my @list_names = qw(xs ys);
+  for ($params->@*) {
+      if ($_ eq 'f') {
+          my $name = shift @list_names;
+          $ret .= "    $name' <- newArray $name\n";
+      } elsif ($_ eq 'comp') {
+          $ret .= "    cmp <- mkCompare p\n";
+      }
+  }
+  my $call_params = toCallParamsStr($params);
+  $ret .= "    pure \$ $fn $call_params === my_$fn $call_params\n";
+  $ret .= "\n";
   return $ret;
 }
 
@@ -83,9 +93,74 @@ sub toTypes {
   return @types;
 }
 
-sub toTypeSpec {
+sub toForeignTypeSpec {
   my ($params) = @_;
   return join ' -> ', toTypes($params);
+}
+
+sub toPropTypeSpec {
+    my ($params) = @_;
+    return join ' -> ', toPropTypes($params);
+}
+
+sub toPropTypes {
+    my ($params) = @_;
+    my @types;
+    for ($params->@*) {
+        if ($_ eq 'f') {
+            push @types, '[CInt]';
+        } elsif ($_ eq 'comp') {
+            push @types, 'Fun (CInt,CInt) CBool';
+        } elsif ($_ eq 'val') {
+            push @types, 'CInt';
+        }
+    }
+    push @types, 'Property';
+    return @types;
+}
+
+sub toCallParams {
+    my ($params) = @_;
+    my @ret;
+    my @list_names = qw(xs ys);
+    for ($params->@*) {
+        if ($_ eq 'f') {
+            my $var = shift @list_names;
+            push @ret, "$var'";
+            push @ret, "(genericLength $var)";
+        } elsif ($_ eq 'comp') {
+            push @ret, 'cmp';
+        } elsif ($_ eq 'val') {
+            push @ret, 'x';
+        }
+    }
+    return @ret;
+}
+
+sub toCallParamsStr {
+    my ($params) = @_;
+    return join ' ', toCallParams($params);
+}
+
+sub toPropParamsStr {
+    my ($types) = @_;
+    return join ' ', toPropParams($types);
+}
+
+sub toPropParams {
+    my ($types) = @_;
+    my @list_names = qw(xs ys);
+    my @params;
+    for ($types->@*) {
+        if ($_ eq '[CInt]') {
+            push @params, shift @list_names;
+        } elsif ($_ eq 'Fun (CInt,CInt) CBool') {
+            push @params, '(Fn2 p)';
+        } elsif ($_ eq 'CInt') {
+            push @params, 'x';
+        }
+    }
+    return @params;
 }
 
 sub parseSignatures {
@@ -93,7 +168,7 @@ sub parseSignatures {
     my @sigs;
     while (<$f_in>) {
         if (!!1 .. $_ eq qq!extern "C" {\n!) {
-            if (/^auto (\w++)\(([^\(\)]*+)\) \{$/) {
+            if (/^auto my_(\w++)\(([^\(\)]*+)\) \{$/) {
                 my $fn = $1;
                 my $params_str = $2;
                 my @params = map { s/^auto ([[:alpha:]]++).*+/$1/r } split ', ', $params_str;
@@ -109,7 +184,7 @@ sub generateHaskell {
     while (<$f_in>) {
         # if (my $ff = $_ eq "-- AUTOGEN BEGIN\n" .. $_ eq "-- AUTOGEN END\n") {
         if (my $ff = $_ eq "-- AUTOGEN BEGIN\n" .. $_ eq "-- AUTOGEN END\n") {
-            next unless $ff == 1 or 'E0' eq substr $ff, -2;
+            print {$f_out} $_ if $ff == 1 or 'E0' eq substr $ff, -2;
             if ($ff == 1) {
                 for my $sig ($sigs->@*) {
                     print {$f_out} generateProperties($sig->[0], $sig->[1]);
@@ -128,7 +203,7 @@ sub main {
     open my $f_in, '<', 'Algo.hs.bak';
     open my $f_out, '>', 'Algo.hs';
     generateHaskell($f_in, $f_out, \@sigs);
-    print join "\n", generateCWrapper('adjacent_find', ['f', 'l', 'comp']);
+    # print join "\n", generateCWrapper('adjacent_find', ['f', 'l', 'comp']);
 }
 
 main() unless caller;
