@@ -35,21 +35,20 @@ auto my_find(auto f, auto l, auto val) {
 }
 
 extern "C" {
-  /* int add(int x, int y) { return x + y; } */
-    int hs_my_adjacent_find(int *arr, int len, int (*comp)(int, int)) {
-      std::vector<int> v{};
-      for (int i = 0; i < len; i++) {
-        v.push_back(arr[i]);
-      }
-      return *my_adjacent_find(v.begin(), v.end(), comp);
-    }
-
     int hs_adjacent_find(int *arr, int len, int (*comp)(int, int)) {
       std::vector<int> v{};
       for (int i = 0; i < len; i++) {
         v.push_back(arr[i]);
       }
       return *std::adjacent_find(v.begin(), v.end(), comp);
+    }
+
+    int hs_my_adjacent_find(int *arr, int len, int (*comp)(int, int)) {
+      std::vector<int> v{};
+      for (int i = 0; i < len; i++) {
+        v.push_back(arr[i]);
+      }
+      return *my_adjacent_find(v.begin(), v.end(), comp);
     }
 
     int hs_my_is_sorted_until(int *arr, int len, int (*comp)(int, int)) {
