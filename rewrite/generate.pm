@@ -196,14 +196,34 @@ sub generateHaskell {
     }
 }
 
+sub generateCWrappers {
+    my ($f_in, $f_out, $sigs) = @_;
+    while (<$f_in>) {
+        if (my $ff = $_ eq qq!extern "C" {\n! .. $_ eq "};\n") {
+            print {$f_out} $_ if $ff == 1 or 'E0' eq substr $ff, -2;
+            if ($ff == 1) {
+                for my $sig ($sigs->@*) {
+                    print {$f_out} join '', map { "$_\n" =~ s/./    $&/r } generateCWrapper($sig->[0], $sig->[1]);
+                }
+            }
+        } else {
+            print {$f_out} $_;
+        }
+    }
+}
+
 sub main {
     open my $f_cpp, '<', 'algorithm.cpp';
     my @sigs = parseSignatures($f_cpp);
-    rename 'Algo.hs', 'Algo.hs.bak';
-    open my $f_in, '<', 'Algo.hs.bak';
-    open my $f_out, '>', 'Algo.hs';
-    generateHaskell($f_in, $f_out, \@sigs);
-    # print join "\n", generateCWrapper('adjacent_find', ['f', 'l', 'comp']);
+    close $f_cpp;
+    # rename 'Algo.hs', 'Algo.hs.bak';
+    # open my $f_in, '<', 'Algo.hs.bak';
+    # open my $f_out, '>', 'Algo.hs';
+    rename 'algorithm.cpp', 'algorithm.cpp.bak';
+    open my $f_in, '<', 'algorithm.cpp.bak';
+    open my $f_out, '>', 'algorithm.cpp';
+    # generateHaskell($f_in, $f_out, \@sigs);
+    generateCWrappers($f_in, $f_out, \@sigs);
 }
 
 main() unless caller;
