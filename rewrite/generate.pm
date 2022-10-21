@@ -5,6 +5,7 @@ use Data::Dumper;
 use FindBin qw($Bin);
 use lib "$Bin";
 use autodie;
+use List::Util qw(any);
 
 my %derefs = (
   'adjacent_find' => '*',
@@ -56,12 +57,12 @@ sub generateCWrapper {
   my ($fn, $params) = @_;
   my @ret;
   for ('', 'my_') {
-    push @ret, "$ret_types{$fn} hs_$_$fn(int *arr, int len" . (grep('comp', $params->@*) && ', int (*comp)(int, int)') . ') {';
+    push @ret, "$ret_types{$fn} hs_$_$fn(int *arr, int len" . ((any { $_ eq 'comp' } $params->@*) && ', int (*comp)(int, int)') . ') {';
     push @ret, '  std::vector<int> v{};';
     push @ret, '  for (int i = 0; i < len; i++) {';
     push @ret, '    v.push_back(arr[i]);';
     push @ret, '  }';
-    push @ret, "  return $derefs{$fn}@{[$_ || 'std::']}$fn(v.begin(), v.end()" . (grep('comp', $params->@*) && ', comp') . ');';
+    push @ret, "  return $derefs{$fn}@{[$_ || 'std::']}$fn(v.begin(), v.end()" . ((any { $_ eq 'comp' } $params->@*) && ', comp') . ');';
     push @ret, '}';
     push @ret, '';
   }
@@ -216,13 +217,16 @@ sub main {
     open my $f_cpp, '<', 'algorithm.cpp';
     my @sigs = parseSignatures($f_cpp);
     close $f_cpp;
-    # rename 'Algo.hs', 'Algo.hs.bak';
-    # open my $f_in, '<', 'Algo.hs.bak';
-    # open my $f_out, '>', 'Algo.hs';
+    if (@ARGV && $ARGV[0] eq '-h') {
+        rename 'Algo.hs', 'Algo.hs.bak';
+        open my $f_in, '<', 'Algo.hs.bak';
+        open my $f_out, '>', 'Algo.hs';
+        generateHaskell($f_in, $f_out, \@sigs);
+        return;
+    }
     rename 'algorithm.cpp', 'algorithm.cpp.bak';
     open my $f_in, '<', 'algorithm.cpp.bak';
     open my $f_out, '>', 'algorithm.cpp';
-    # generateHaskell($f_in, $f_out, \@sigs);
     generateCWrappers($f_in, $f_out, \@sigs);
 }
 

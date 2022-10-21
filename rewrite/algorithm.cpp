@@ -1,11 +1,12 @@
 #include <algorithm>
 #include <vector>
 #include <functional>
+#include <cstdio>
 
 #include <fmt/core.h>
 
-auto my_equal(auto f, auto l, auto f2) {
-    return std::mismatch(f, l, f2, std::not_equal_to{}).first == l;
+auto my_adjacent_find(auto f, auto l, auto comp) {
+    return std::mismatch(f, std::prev(l), std::next(f), comp).first;
 }
 
 extern "C" {
