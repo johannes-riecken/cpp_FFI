@@ -25,11 +25,11 @@ foreign import ccall "hs_adjacent_find" adjacent_find :: Ptr CInt -> CInt -> Fun
 
 foreign import ccall "hs_my_adjacent_find" my_adjacent_find :: Ptr CInt -> CInt -> FunPtr Compare -> CInt
 
-prop_adjacent_find :: [CInt] -> NonEmptyList CInt -> Fun (CInt,CInt) CBool -> Property
-prop_adjacent_find xs (NonEmpty ys) (Fn2 p) = unsafePerformIO $ do
+prop_adjacent_find :: [CInt] -> Fun (CInt,CInt) CBool -> Property
+prop_adjacent_find xs (Fn2 p) = unsafePerformIO $ do
     let p' x y = if x == y then 1 else 0
-    xs' <- newArray (xs ++ head ys : ys)
-    cmp <- mkCompare p'
+    xs' <- newArray xs
+    cmp <- mkCompare p
     pure $ adjacent_find xs' (genericLength xs) cmp === my_adjacent_find xs' (genericLength xs) cmp
 
 -- AUTOGEN END
