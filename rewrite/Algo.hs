@@ -22,22 +22,22 @@ foreign import ccall "wrapper"
 instance Function CInt where
   function = functionIntegral
 
+collapse :: Eq a => [a] -> [a]
 collapse = foldr (\x acc -> if Just x == listToMaybe acc then acc else x:acc) []
 
-foreign import ccall "hs_is_sorted_until" is_sorted_until :: Ptr CInt -> CInt -> FunPtr Compare -> CInt
-
-foreign import ccall "hs_my_is_sorted_until" my_is_sorted_until :: Ptr CInt -> CInt -> FunPtr Compare -> CInt
-
-prop_is_sorted_until :: [CInt] -> Property
-prop_is_sorted_until xs = unsafePerformIO $ do
-    let xs'' = collapse xs
-    xs' <- newArray xs''
-    cmp <- mkCompare (fromIntegral . fromEnum .: (<))
-    pure $ is_sorted_until xs' (genericLength xs'') cmp === my_is_sorted_until xs' (genericLength xs'') cmp
-
 -- AUTOGEN BEGIN
+foreign import ccall "hs_is_sorted" is_sorted :: Ptr CInt -> CInt -> FunPtr Compare -> CBool
+
+foreign import ccall "hs_my_is_sorted" my_is_sorted :: Ptr CInt -> CInt -> FunPtr Compare -> CBool
+
+prop_is_sorted :: [CInt] -> Fun (CInt,CInt) CBool -> Property
+prop_is_sorted xs (Fn2 p) = unsafePerformIO $ do
+    xs' <- newArray xs
+    cmp <- mkCompare p
+    pure $ is_sorted xs' (genericLength xs) cmp === my_is_sorted xs' (genericLength xs) cmp
+
 -- AUTOGEN END
 
 main :: IO ()
 main = do
-    quickCheck prop_is_sorted_until
+    quickCheck prop_is_sorted

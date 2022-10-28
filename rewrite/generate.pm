@@ -61,8 +61,13 @@ sub generateCWrapper {
     push @ret, '  for (int i = 0; i < len; i++) {';
     push @ret, '    v.push_back(arr[i]);';
     push @ret, '  }';
-    push @ret, "  auto it = @{[$_ || 'std::']}$fn(v.begin(), v.end()" . ((any { $_ eq 'comp' } $params->@*) && ', comp') . ');';
-    push @ret, '  return std::distance(v.begin(), it);';
+    if ($derefs{$fn}) {
+        push @ret, "  auto it = @{[$_ || 'std::']}$fn(v.begin(), v.end()" . ((any { $_ eq 'comp' } $params->@*) && ', comp') . ');';
+        push @ret, '  return std::distance(v.begin(), it);';
+    } else {
+        push @ret, "  auto ret = @{[$_ || 'std::']}$fn(v.begin(), v.end()" . ((any { $_ eq 'comp' } $params->@*) && ', comp') . ');';
+        push @ret, '  return ret;';
+    }
     push @ret, '}';
     push @ret, '';
   }
