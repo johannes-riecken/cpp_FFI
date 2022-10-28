@@ -4,6 +4,8 @@ import Foreign.Ptr
 import Foreign.Marshal.Array
 import Test.QuickCheck
 import System.IO.Unsafe
+import Data.Function.Pointless
+import Data.Maybe (listToMaybe)
 
 instance CoArbitrary CInt where
   coarbitrary = coarbitraryIntegral
@@ -20,20 +22,22 @@ foreign import ccall "wrapper"
 instance Function CInt where
   function = functionIntegral
 
+collapse = foldr (\x acc -> if Just x == listToMaybe acc then acc else x:acc) []
+
+foreign import ccall "hs_is_sorted_until" is_sorted_until :: Ptr CInt -> CInt -> FunPtr Compare -> CInt
+
+foreign import ccall "hs_my_is_sorted_until" my_is_sorted_until :: Ptr CInt -> CInt -> FunPtr Compare -> CInt
+
+prop_is_sorted_until :: [CInt] -> Property
+prop_is_sorted_until xs = unsafePerformIO $ do
+    let xs'' = collapse xs
+    xs' <- newArray xs''
+    cmp <- mkCompare (fromIntegral . fromEnum .: (<))
+    pure $ is_sorted_until xs' (genericLength xs'') cmp === my_is_sorted_until xs' (genericLength xs'') cmp
+
 -- AUTOGEN BEGIN
-foreign import ccall "hs_adjacent_find" adjacent_find :: Ptr CInt -> CInt -> FunPtr Compare -> CInt
-
-foreign import ccall "hs_my_adjacent_find" my_adjacent_find :: Ptr CInt -> CInt -> FunPtr Compare -> CInt
-
-prop_adjacent_find :: [CInt] -> Fun (CInt,CInt) CBool -> Property
-prop_adjacent_find xs (Fn2 p) = unsafePerformIO $ do
-    let p' x y = if x == y then 1 else 0
-    xs' <- newArray xs
-    cmp <- mkCompare p
-    pure $ adjacent_find xs' (genericLength xs) cmp === my_adjacent_find xs' (genericLength xs) cmp
-
 -- AUTOGEN END
 
 main :: IO ()
 main = do
-    quickCheck prop_adjacent_find
+    quickCheck prop_is_sorted_until

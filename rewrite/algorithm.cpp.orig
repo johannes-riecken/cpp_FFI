@@ -8,11 +8,11 @@ auto my_adjacent_find(auto f, auto l, auto comp) {
     return std::mismatch(f, std::prev(l), std::next(f), std::not_fn(comp)).first;
 }
 
-auto my_is_sorted_until(auto f, auto l, auto comp = std::less_equal{}) {
+auto my_is_sorted_until(auto f, auto l, auto comp = std::less{}) {
     return std::adjacent_find(f, l, std::not_fn(comp));
 }
 
-auto my_is_sorted(auto f, auto l, auto comp = std::less_equal{}) {
+auto my_is_sorted(auto f, auto l, auto comp = std::less{}) {
     return std::is_sorted_until(f, l, comp) == l;
 }
 

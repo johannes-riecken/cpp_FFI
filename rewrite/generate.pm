@@ -37,7 +37,6 @@ sub generateProperties {
   my @types = toPropTypes($params);
   $ret .= "prop_$fn :: @{[toPropTypeSpec($params)]}\n";
   $ret .= "prop_$fn @{[toPropParamsStr(\@types)]} = unsafePerformIO \$ do\n";
-  $ret .= "    let p' x y = if x == y then 1 else 0\n";
   my @list_names = qw(xs ys);
   for ($params->@*) {
       if ($_ eq 'f') {
