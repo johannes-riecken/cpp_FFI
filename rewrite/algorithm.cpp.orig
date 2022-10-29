@@ -8,6 +8,12 @@ auto my_adjacent_find(auto f, auto l, auto comp) {
     return std::mismatch(f, std::prev(l), std::next(f), std::not_fn(comp)).first;
 }
 
+auto my_is_partitioned(auto f, auto l, auto p) {
+    return std::is_sorted(f, l, [&](auto a, auto b) {
+        return p(b) < p(a);
+    });
+}
+
 auto my_is_sorted_until(auto f, auto l, auto comp = std::less{}) {
     return std::adjacent_find(f, l, std::not_fn(comp));
 }

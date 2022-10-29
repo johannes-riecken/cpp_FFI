@@ -9,26 +9,28 @@ use List::Util qw(any);
 
 my %derefs = (
   'adjacent_find' => '*',
-  'is_sorted_until' => '*',
-  'is_sorted' => '',
-  'equal' => '',
-  'find_if' => '*',
-  'any_of' => '',
   'all_of' => '',
-  'none_of' => '',
+  'any_of' => '',
+  'equal' => '',
   'find' => '*',
+  'find_if' => '*',
+  'is_paritioned' => '',
+  'is_sorted' => '',
+  'is_sorted_until' => '*',
+  'none_of' => '',
 );
 
 my %ret_types = (
   'adjacent_find' => 'int',
-  'is_sorted_until' => 'int',
-  'is_sorted' => 'bool',
-  'equal' => 'bool',
-  'find_if' => 'int',
-  'any_of' => 'bool',
   'all_of' => 'bool',
-  'none_of' => 'bool',
+  'any_of' => 'bool',
+  'equal' => 'bool',
   'find' => 'int',
+  'find_if' => 'int',
+  'is_partitioned' => 'bool',
+  'is_sorted' => 'bool',
+  'is_sorted_until' => 'int',
+  'none_of' => 'bool',
 );
 
 sub generateProperties {
