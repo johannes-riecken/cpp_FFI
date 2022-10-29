@@ -14,6 +14,7 @@ my %derefs = (
   'equal' => '',
   'find_if' => '*',
   'any_of' => '',
+  'all_of' => '',
   'find' => '*',
 );
 
@@ -24,6 +25,7 @@ my %ret_types = (
   'equal' => 'bool',
   'find_if' => 'int',
   'any_of' => 'bool',
+  'all_of' => 'bool',
   'find' => 'int',
 );
 
