@@ -26,8 +26,8 @@ auto my_find_if(auto f, auto l, auto p) {
     }).first;
 }
 
-auto my_any_of(auto f, auto l, auto comp) {
-    return std::find_if(f, l, comp) != l;
+auto my_any_of(auto f, auto l, auto p) {
+    return std::find_if(f, l, p) != l;
 }
 
 auto my_find(auto f, auto l, auto val) {
