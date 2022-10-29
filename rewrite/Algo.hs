@@ -19,6 +19,10 @@ type Compare = CInt -> CInt -> CBool
 foreign import ccall "wrapper"
   mkCompare :: Compare -> IO (FunPtr Compare)
 
+type UnaryPred = CInt -> CBool
+foreign import ccall "wrapper"
+    mkUnaryPred :: UnaryPred -> IO (FunPtr UnaryPred)
+
 instance Function CInt where
   function = functionIntegral
 
@@ -26,18 +30,18 @@ collapse :: Eq a => [a] -> [a]
 collapse = foldr (\x acc -> if Just x == listToMaybe acc then acc else x:acc) []
 
 -- AUTOGEN BEGIN
-foreign import ccall "hs_is_sorted" is_sorted :: Ptr CInt -> CInt -> FunPtr Compare -> CBool
+foreign import ccall "hs_find_if" find_if :: Ptr CInt -> CInt -> FunPtr UnaryPred -> CInt
 
-foreign import ccall "hs_my_is_sorted" my_is_sorted :: Ptr CInt -> CInt -> FunPtr Compare -> CBool
+foreign import ccall "hs_my_find_if" my_find_if :: Ptr CInt -> CInt -> FunPtr UnaryPred -> CInt
 
-prop_is_sorted :: [CInt] -> Fun (CInt,CInt) CBool -> Property
-prop_is_sorted xs (Fn2 p) = unsafePerformIO $ do
+prop_find_if :: [CInt] -> Fun CInt CBool -> Property
+prop_find_if xs (Fn p) = unsafePerformIO $ do
     xs' <- newArray xs
-    cmp <- mkCompare p
-    pure $ is_sorted xs' (genericLength xs) cmp === my_is_sorted xs' (genericLength xs) cmp
+    cmp <- mkUnaryPred p
+    pure $ find_if xs' (genericLength xs) cmp === my_find_if xs' (genericLength xs) cmp
 
 -- AUTOGEN END
 
 main :: IO ()
 main = do
-    quickCheck prop_is_sorted
+    quickCheck prop_find_if

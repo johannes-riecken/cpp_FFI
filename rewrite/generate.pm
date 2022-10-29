@@ -44,6 +44,8 @@ sub generateProperties {
           $ret .= "    $name' <- newArray $name\n";
       } elsif ($_ eq 'comp') {
           $ret .= "    cmp <- mkCompare p\n";
+      } elsif ($_ eq 'p') {
+          $ret .= "    cmp <- mkUnaryPred p\n";
       }
   }
   my $call_params = toCallParamsStr($params);
@@ -51,6 +53,27 @@ sub generateProperties {
   $ret .= "\n";
   return $ret;
 }
+
+sub predicateParamSuffix {
+    my ($params) = @_;
+    if (any { $_ eq 'comp' } $params->@*) {
+        return ', int (*comp)(int, int)';
+    } elsif (any {$_ eq 'p' } $params->@*) {
+        return ', int (*p)(int)';
+    }
+    return '';
+}
+
+sub predicateArgSuffix {
+    my ($params) = @_;
+    if (any { $_ eq 'comp' } $params->@*) {
+        return ', comp';
+    } elsif (any {$_ eq 'p' } $params->@*) {
+        return ', p';
+    }
+    return '';
+}
+
 
 sub generateCWrapper {
   my ($fn, $params) = @_;
@@ -67,13 +90,13 @@ sub generateCWrapper {
         push @loops, "  }";
         push @fwd_args, "v$i.begin()", $i == 0 ? "v$i.end()" : ();
     }
-    push @ret, "$ret_types{$fn} hs_$_$fn(@{[join ', ', @args]}" . ((any { $_ eq 'comp' } $params->@*) && ', int (*comp)(int, int)') . ') {';
+    push @ret, "$ret_types{$fn} hs_$_$fn(@{[join ', ', @args]}" . predicateParamSuffix($params) . ') {';
     push @ret, @loops;
     if ($derefs{$fn}) {
-        push @ret, "  auto it = @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . ((any { $_ eq 'comp' } $params->@*) && ', comp') . ');';
-        push @ret, '  return std::distance(v.begin(), it);';
+        push @ret, "  auto it = @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . predicateArgSuffix($params) . ');';
+        push @ret, '  return std::distance(v0.begin(), it);';
     } else {
-        push @ret, "  auto ret = @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . ((any { $_ eq 'comp' } $params->@*) && ', comp') . ');';
+        push @ret, "  auto ret = @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . predicateArgSuffix($params) . ');';
         push @ret, '  return ret;';
     }
     push @ret, '}';
@@ -100,6 +123,8 @@ sub toTypes {
       # ignore
     } elsif ($_ eq 'comp') {
       push @types, 'FunPtr Compare';
+    } elsif ($_ eq 'p') {
+      push @types, 'FunPtr UnaryPred';
     } elsif ($_ eq 'val') {
       push @types, 'CInt';
     }
@@ -125,6 +150,8 @@ sub toPropTypes {
             push @types, '[CInt]';
         } elsif ($_ eq 'comp') {
             push @types, 'Fun (CInt,CInt) CBool';
+        } elsif ($_ eq 'p') {
+            push @types, 'Fun CInt CBool';
         } elsif ($_ eq 'val') {
             push @types, 'CInt';
         }
@@ -142,7 +169,7 @@ sub toCallParams {
             my $var = shift @list_names;
             push @ret, "$var'";
             push @ret, "(genericLength $var)";
-        } elsif ($_ eq 'comp') {
+        } elsif ($_ eq 'comp' || $_ eq 'p') {
             push @ret, 'cmp';
         } elsif ($_ eq 'val') {
             push @ret, 'x';
@@ -170,6 +197,8 @@ sub toPropParams {
             push @params, shift @list_names;
         } elsif ($_ eq 'Fun (CInt,CInt) CBool') {
             push @params, '(Fn2 p)';
+        } elsif ($_ eq 'Fun CInt CBool') {
+            push @params, '(Fn p)';
         } elsif ($_ eq 'CInt') {
             push @params, 'x';
         }
