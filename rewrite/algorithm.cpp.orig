@@ -17,12 +17,12 @@ auto my_is_sorted(auto f, auto l, auto comp = std::less{}) {
 }
 
 auto my_equal(auto f, auto l, auto f2) {
-    return std::mismatch(f, l, f2, std::not_equal_to{}).first == l;
+    return std::mismatch(f, l, f2, std::equal_to{}).first == l;
 }
 
-auto my_find_if(auto f, auto l, auto comp) {
+auto my_find_if(auto f, auto l, auto p) {
     return std::mismatch(f, l, f, [&](auto a, auto b) {
-        return comp(a, b);
+        return !p(a);
     }).first;
 }
 
