@@ -18,6 +18,7 @@ my %derefs = (
   'is_sorted' => '',
   'is_sorted_until' => '*',
   'none_of' => '',
+  'partition_point' => '*',
 );
 
 my %ret_types = (
@@ -31,6 +32,7 @@ my %ret_types = (
   'is_sorted' => 'bool',
   'is_sorted_until' => 'int',
   'none_of' => 'bool',
+  'partition_point' => 'int',
 );
 
 sub generateProperties {

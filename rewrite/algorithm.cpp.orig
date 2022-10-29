@@ -14,6 +14,10 @@ auto my_is_partitioned(auto f, auto l, auto p) {
     });
 }
 
+auto my_partition_point(auto f, auto l, auto p) {
+    return std::find_if(f, l, std::not_fn(p));
+}
+
 auto my_is_sorted_until(auto f, auto l, auto comp = std::less{}) {
     return std::adjacent_find(f, l, std::not_fn(comp));
 }
