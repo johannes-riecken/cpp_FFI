@@ -17,6 +17,7 @@ my %derefs = (
   'is_paritioned' => '',
   'is_sorted' => '',
   'is_sorted_until' => '*',
+  'lower_bound' => '*',
   'none_of' => '',
   'partition_point' => '*',
 );
@@ -31,6 +32,7 @@ my %ret_types = (
   'is_partitioned' => 'bool',
   'is_sorted' => 'bool',
   'is_sorted_until' => 'int',
+  'lower_bound' => 'int',
   'none_of' => 'bool',
   'partition_point' => 'int',
 );
