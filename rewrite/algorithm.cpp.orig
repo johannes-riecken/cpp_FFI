@@ -34,6 +34,10 @@ auto my_all_of(auto f, auto l, auto p) {
     return std::find_if(f, l, std::not_fn(p)) == l;
 }
 
+auto my_none_of(auto f, auto l, auto p) {
+    return std::find_if(f, l, p) == l;
+}
+
 auto my_find(auto f, auto l, auto val) {
     return std::find_if(f, l, [&](auto e) { return e == val; });
 }
