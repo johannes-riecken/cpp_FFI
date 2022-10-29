@@ -20,6 +20,7 @@ my %derefs = (
   'lower_bound' => '*',
   'none_of' => '',
   'partition_point' => '*',
+  'upper_bound' => '*',
 );
 
 my %ret_types = (
@@ -35,6 +36,7 @@ my %ret_types = (
   'lower_bound' => 'int',
   'none_of' => 'bool',
   'partition_point' => 'int',
+  'upper_bound' => 'int',
 );
 
 sub generateProperties {
