@@ -24,6 +24,20 @@ auto my_lower_bound(auto f, auto l, auto val) {
         });
 }
 
+auto my_lower_bound(auto f, auto l, auto val) {
+    return std::equal_range(f, l, val).first;
+}
+
+auto my_upper_bound(auto f, auto l, auto val) {
+    return std::partition_point(f, l, [&](auto e) {
+        return e <= val;
+        });
+}
+
+auto my_upper_bound(auto f, auto l, auto val) {
+    return std::equal_range(f, l, val).second;
+}
+
 auto my_is_sorted_until(auto f, auto l, auto comp = std::less{}) {
     return std::adjacent_find(f, l, std::not_fn(comp));
 }
@@ -62,6 +76,27 @@ auto my_none_of(auto f, auto l, auto p) {
 
 auto my_find(auto f, auto l, auto val) {
     return std::find_if(f, l, [&](auto e) { return e == val; });
+}
+
+// modifying
+void my_shift_left(int *arr, int len, int n) {
+ if (len == 0) {
+   return;
+ }
+ std::copy(arr + n, arr + len, arr);
+}
+
+void my_shift_right(int *arr, int len, int n) {
+ if (len == 0) {
+   return;
+ }
+ std::copy_backward(arr, arr + len - n, arr + len);
+}
+
+void my_replace(int *arr, int len, int val0, int val1) {
+ std::transform(arr, arr + len, arr, [&](int a) {
+     return a == val0 ? val1 : a;
+     });
 }
 
 extern "C" {
