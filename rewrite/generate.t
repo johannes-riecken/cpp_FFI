@@ -127,46 +127,22 @@ B
     my $want = q!A
 extern "C" {
     int hs_find(int *arr0, int len0) {
-      std::vector<int> v0{};
-      for (int i = 0; i < len0; i++) {
-        v0.push_back(arr0[i]);
-      }
-      auto it = std::find(v0.begin(), v0.end());
-      return std::distance(v0.begin(), it);
+      auto it = std::find(arr0, arr0 + len0);
+      return std::distance(arr0, it);
     }
 
     int hs_my_find(int *arr0, int len0) {
-      std::vector<int> v0{};
-      for (int i = 0; i < len0; i++) {
-        v0.push_back(arr0[i]);
-      }
-      auto it = my_find(v0.begin(), v0.end());
-      return std::distance(v0.begin(), it);
+      auto it = my_find(arr0, arr0 + len0);
+      return std::distance(arr0, it);
     }
 
     bool hs_equal(int *arr0, int len0, int *arr1, int len1) {
-      std::vector<int> v0{};
-      for (int i = 0; i < len0; i++) {
-        v0.push_back(arr0[i]);
-      }
-      std::vector<int> v1{};
-      for (int i = 0; i < len1; i++) {
-        v1.push_back(arr1[i]);
-      }
-      auto ret = std::equal(v0.begin(), v0.end(), v1.begin());
+      auto ret = std::equal(arr0, arr0 + len0, arr1);
       return ret;
     }
 
     bool hs_my_equal(int *arr0, int len0, int *arr1, int len1) {
-      std::vector<int> v0{};
-      for (int i = 0; i < len0; i++) {
-        v0.push_back(arr0[i]);
-      }
-      std::vector<int> v1{};
-      for (int i = 0; i < len1; i++) {
-        v1.push_back(arr1[i]);
-      }
-      auto ret = my_equal(v0.begin(), v0.end(), v1.begin());
+      auto ret = my_equal(arr0, arr0 + len0, arr1);
       return ret;
     }
 

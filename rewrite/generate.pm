@@ -127,20 +127,14 @@ sub generateCWrapper {
   for ('', 'my_') {
     my @args;
     my @fwd_args;
-    my @loops;
     for (my $i = 0; $i <  grep { $_ eq 'f' } $params->@*; $i++) {
         push @args, "int *arr$i", "int len$i";
-        push @loops, "  std::vector<int> v$i\{\};";
-        push @loops, "  for (int i = 0; i < len$i; i++) {";
-        push @loops, "    v$i.push_back(arr$i\[i\]);";
-        push @loops, "  }";
-        push @fwd_args, "v$i.begin()", $i == 0 ? "v$i.end()" : ();
+        push @fwd_args, "arr$i", $i == 0 ? "arr$i + len$i" : ();
     }
     push @ret, "$ret_types{$fn} hs_$_$fn(@{[join ', ', @args]}" . predicateParamSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', int val') . ') {';
-    push @ret, @loops;
     if ($derefs{$fn}) {
         push @ret, "  auto it = @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . predicateArgSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', val') . ');';
-        push @ret, '  return std::distance(v0.begin(), it);';
+        push @ret, '  return std::distance(arr0, it);';
     } else {
         push @ret, "  auto ret = @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . predicateArgSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', val') . ');';
         push @ret, '  return ret;';
