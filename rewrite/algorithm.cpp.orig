@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <numeric>
 #include <vector>
 #include <functional>
 
@@ -24,9 +25,9 @@ auto my_lower_bound(auto f, auto l, auto val) {
         });
 }
 
-auto my_lower_bound(auto f, auto l, auto val) {
-    return std::equal_range(f, l, val).first;
-}
+/* auto my_lower_bound(auto f, auto l, auto val) { */
+/*     return std::equal_range(f, l, val).first; */
+/* } */
 
 auto my_upper_bound(auto f, auto l, auto val) {
     return std::partition_point(f, l, [&](auto e) {
@@ -34,9 +35,9 @@ auto my_upper_bound(auto f, auto l, auto val) {
         });
 }
 
-auto my_upper_bound(auto f, auto l, auto val) {
-    return std::equal_range(f, l, val).second;
-}
+/* auto my_upper_bound(auto f, auto l, auto val) { */
+/*     return std::equal_range(f, l, val).second; */
+/* } */
 
 auto my_is_sorted_until(auto f, auto l, auto comp = std::less{}) {
     return std::adjacent_find(f, l, std::not_fn(comp));
@@ -64,11 +65,11 @@ auto my_all_of(auto f, auto l, auto p) {
     return std::find_if(f, l, std::not_fn(p)) == l;
 }
 
-auto my_all_of(auto f, auto l, auto p) {
-    return std::accumulate(f, l, true, [&](auto a, auto b) {
-        return a && p(b);
-        });
-}
+/* auto my_all_of(auto f, auto l, auto p) { */
+/*     return std::accumulate(f, l, true, [&](auto a, auto b) { */
+/*         return a && p(b); */
+/*         }); */
+/* } */
 
 auto my_none_of(auto f, auto l, auto p) {
     return std::find_if(f, l, p) == l;
@@ -79,11 +80,8 @@ auto my_find(auto f, auto l, auto val) {
 }
 
 // modifying
-void my_shift_left(int *arr, int len, int n) {
- if (len == 0) {
-   return;
- }
- std::copy(arr + n, arr + len, arr);
+auto arr_shift_left(auto f, auto l, auto val) {
+    return std::copy(f + val, l, f);
 }
 
 void my_shift_right(int *arr, int len, int n) {

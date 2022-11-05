@@ -6,6 +6,8 @@ import Test.QuickCheck
 import System.IO.Unsafe
 import Data.Function.Pointless
 import Data.Maybe (listToMaybe)
+import Control.Monad (guard)
+import Data.List.Extra (takeEnd)
 
 instance CoArbitrary CInt where
   coarbitrary = coarbitraryIntegral
@@ -23,25 +25,29 @@ type UnaryPred = CInt -> CBool
 foreign import ccall "wrapper"
     mkUnaryPred :: UnaryPred -> IO (FunPtr UnaryPred)
 
+type Generator = IO CBool
+foreign import ccall "wrapper"
+    mkGenerator :: Generator -> IO (FunPtr Generator)
+
 instance Function CInt where
   function = functionIntegral
+
+hsShiftRight :: [a] -> Int -> [a]
+hsShiftRight xs n = drop n xs ++ takeEnd n xs
+
+hsShiftLeft :: [a] -> Int -> [a]
+hsShiftLeft xs n = drop n xs ++ takeEnd n xs
+
+-- hsShiftRight' xs n = foldr (\x acc ->
+
+-- hsShiftLeft xs n = foldr (\x (i,acc) -> ) (0,xs)
 
 collapse :: Eq a => [a] -> [a]
 collapse = foldr (\x acc -> if Just x == listToMaybe acc then acc else x:acc) []
 
 -- AUTOGEN BEGIN
-foreign import ccall "hs_find_if" find_if :: Ptr CInt -> CInt -> FunPtr UnaryPred -> CInt
-
-foreign import ccall "hs_my_find_if" my_find_if :: Ptr CInt -> CInt -> FunPtr UnaryPred -> CInt
-
-prop_find_if :: [CInt] -> Fun CInt CBool -> Property
-prop_find_if xs (Fn p) = unsafePerformIO $ do
-    xs' <- newArray xs
-    cmp <- mkUnaryPred p
-    pure $ find_if xs' (genericLength xs) cmp === my_find_if xs' (genericLength xs) cmp
-
 -- AUTOGEN END
 
 main :: IO ()
 main = do
-    quickCheck prop_find_if
+    pure ()
