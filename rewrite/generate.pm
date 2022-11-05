@@ -331,9 +331,8 @@ sub generateCWrappers {
 
 sub main {
     open my $f_cpp, '<', 'algorithm.cpp';
-    my @sigs;
-    # my @sigs = parseSignatures($f_cpp);
-    # seek $f_cpp, 0, 0;
+    my @sigs = parseSignatures($f_cpp);
+    seek $f_cpp, 0, 0;
     my @arr_sigs = parseArrSignatures($f_cpp);
     close $f_cpp;
     if (@ARGV && $ARGV[0] eq '-h') {
