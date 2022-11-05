@@ -37,12 +37,13 @@ my %ret_types = (
   'none_of' => 'bool',
   'partition_point' => 'int',
   'upper_bound' => 'int',
+  'shift_left' => 'void',
 );
 
 sub generateProperties {
-  my ($fn, $params) = @_;
+  my ($fn, $params, $is_arr) = @_;
   my $ret = '';
-  for ('', 'my_') {
+  for ('', $is_arr ? 'arr_' : 'my_') {
     $ret .= qq{foreign import ccall "hs_$_$fn" $_$fn :: } . toForeignTypeSpec($params) . " -> " . derefRetTypeForHs($fn) . "\n";
     $ret .= "\n";
   }
@@ -53,7 +54,12 @@ sub generateProperties {
   for ($params->@*) {
       if ($_ eq 'f') {
           my $name = shift @list_names;
-          $ret .= "    $name' <- newArray $name\n";
+          if ($is_arr) {
+            $ret .= "    ${name}0 <- newArray $name\n";
+            $ret .= "    ${name}1 <- newArray $name\n";
+          } else {
+            $ret .= "    $name' <- newArray $name\n";
+          }
       } elsif ($_ eq 'comp') {
           $ret .= "    cmp <- mkCompare p\n";
       } elsif ($_ eq 'p') {
@@ -61,7 +67,17 @@ sub generateProperties {
       }
   }
   my $call_params = toCallParamsStr($params);
-  $ret .= "    pure \$ $fn $call_params === my_$fn $call_params\n";
+  if ($is_arr) {
+    my $call_params0 = toCallParamsStr($params, 0);
+    $ret .= "    $fn $call_params0\n";
+    my $call_params1 = toCallParamsStr($params, 1);
+    $ret .= "    arr_$fn $call_params1\n";
+    $ret .= "    xs0' <- peekArray (length xs) xs0\n";
+    $ret .= "    xs1' <- peekArray (length xs) xs1\n";
+    $ret .= "    pure \$ xs0' === xs1'\n";
+  } else {
+      $ret .= "    pure \$ $fn $call_params === my_$fn $call_params\n";
+  }
   $ret .= "\n";
   return $ret;
 }
@@ -86,6 +102,24 @@ sub predicateArgSuffix {
     return '';
 }
 
+sub generateCWrapperForArr {
+    my ($fn, $params) = @_;
+    my @ret;
+    for ('', 'arr_') {
+      my @args;
+      my @fwd_args;
+      my @loops;
+      for (my $i = 0; $i < grep { $_ eq 'f' } $params->@*; $i++) {
+        push @args, "int *arr$i", "int len$i";
+        push @fwd_args, "arr$i", $i == 0 ? "arr$i + len$i" : ();
+      }
+      push @ret, "$ret_types{$fn} hs_$_$fn(@{[join ', ', @args]}" . predicateParamSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', int val') . ') {';
+      push @ret, "  @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . predicateArgSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', val') . ');';
+      push @ret, '}';
+      push @ret, '';
+    }
+    return @ret;
+}
 
 sub generateCWrapper {
   my ($fn, $params) = @_;
@@ -120,6 +154,9 @@ sub generateCWrapper {
 sub derefRetTypeForHs {
   my ($fn) = @_;
   my $ret = $ret_types{$fn};
+  if ($ret eq 'void') {
+    return 'IO ()';
+  }
   $ret = substr($ret, '*' eq substr($ret, 0, 1));
   $ret =~s /.*/C\u$&/;
   return $ret;
@@ -173,13 +210,17 @@ sub toPropTypes {
 }
 
 sub toCallParams {
-    my ($params) = @_;
+    my ($params, $idx) = @_;
     my @ret;
     my @list_names = qw(xs ys);
     for ($params->@*) {
         if ($_ eq 'f') {
             my $var = shift @list_names;
-            push @ret, "$var'";
+            if (defined $idx) {
+              push @ret, "$var$idx";
+            } else {
+              push @ret, "$var'";
+            }
             push @ret, "(genericLength $var)";
         } elsif ($_ eq 'comp' || $_ eq 'p') {
             push @ret, 'cmp';
@@ -191,8 +232,8 @@ sub toCallParams {
 }
 
 sub toCallParamsStr {
-    my ($params) = @_;
-    return join ' ', toCallParams($params);
+    my ($params, $idx) = @_;
+    return join ' ', toCallParams($params, $idx);
 }
 
 sub toPropParamsStr {
@@ -234,15 +275,32 @@ sub parseSignatures {
     return @sigs;
 }
 
+sub parseArrSignatures {
+    my ($f_in) = @_;
+    my @sigs;
+    while (<$f_in>) {
+        if (!!1 .. $_ eq qq!extern "C" {\n!) {
+            if (/^auto arr_(\w++)\(([^\(\)]*+)\) \{$/) {
+                my $fn = $1;
+                my $params_str = $2;
+                my @params = map { s/^auto ([[:alpha:]]++).*+/$1/r } split ', ', $params_str;
+                push @sigs, [$fn, \@params];
+            }
+        }
+    }
+    return @sigs;
+}
+
+
 sub generateHaskell {
-    my ($f_in, $f_out, $sigs) = @_;
+    my ($f_in, $f_out, $sigs, $is_arr) = @_;
     while (<$f_in>) {
         # if (my $ff = $_ eq "-- AUTOGEN BEGIN\n" .. $_ eq "-- AUTOGEN END\n") {
         if (my $ff = $_ eq "-- AUTOGEN BEGIN\n" .. $_ eq "-- AUTOGEN END\n") {
             print {$f_out} $_ if $ff == 1 or 'E0' eq substr $ff, -2;
             if ($ff == 1) {
                 for my $sig ($sigs->@*) {
-                    print {$f_out} generateProperties($sig->[0], $sig->[1]);
+                    print {$f_out} generateProperties($sig->[0], $sig->[1], $is_arr);
                 }
             }
         } else {
@@ -252,13 +310,17 @@ sub generateHaskell {
 }
 
 sub generateCWrappers {
-    my ($f_in, $f_out, $sigs) = @_;
+    my ($f_in, $f_out, $sigs, $is_arr) = @_;
     while (<$f_in>) {
         if (my $ff = $_ eq qq!extern "C" {\n! .. $_ eq "};\n") {
             print {$f_out} $_ if $ff == 1 or 'E0' eq substr $ff, -2;
             if ($ff == 1) {
                 for my $sig ($sigs->@*) {
-                    print {$f_out} join '', map { "$_\n" =~ s/./    $&/r } generateCWrapper($sig->[0], $sig->[1]);
+                    if ($is_arr) {
+                      print {$f_out} join '', map { "$_\n" =~ s/./    $&/r } generateCWrapperForArr($sig->[0], $sig->[1]);
+                    } else {
+                      print {$f_out} join '', map { "$_\n" =~ s/./    $&/r } generateCWrapper($sig->[0], $sig->[1]);
+                    }
                 }
             }
         } else {
@@ -269,19 +331,30 @@ sub generateCWrappers {
 
 sub main {
     open my $f_cpp, '<', 'algorithm.cpp';
-    my @sigs = parseSignatures($f_cpp);
+    my @sigs;
+    # my @sigs = parseSignatures($f_cpp);
+    # seek $f_cpp, 0, 0;
+    my @arr_sigs = parseArrSignatures($f_cpp);
     close $f_cpp;
     if (@ARGV && $ARGV[0] eq '-h') {
         rename 'Algo.hs', 'Algo.hs.bak';
         open my $f_in, '<', 'Algo.hs.bak';
         open my $f_out, '>', 'Algo.hs';
-        generateHaskell($f_in, $f_out, \@sigs);
+        if (@arr_sigs) {
+          generateHaskell($f_in, $f_out, \@arr_sigs, !!1);
+        } else {
+          generateHaskell($f_in, $f_out, \@sigs);
+        }
         return;
     }
     rename 'algorithm.cpp', 'algorithm.cpp.bak';
     open my $f_in, '<', 'algorithm.cpp.bak';
     open my $f_out, '>', 'algorithm.cpp';
-    generateCWrappers($f_in, $f_out, \@sigs);
+    if (@arr_sigs) {
+      generateCWrappers($f_in, $f_out, \@arr_sigs, !!1);
+    } else {
+      generateCWrappers($f_in, $f_out, \@sigs);
+    }
 }
 
 main() unless caller;
