@@ -116,6 +116,62 @@ B
 !;
   is($out, $want, 'generateHaskell arr');
 }
+{
+  my $in = qq!A\n-- AUTOGEN BEGIN\nfoo\n-- AUTOGEN END\nB\n!;
+  open my $f_in, '<', \$in;
+  my $out = '';
+  open my $f_out, '>', \$out;
+  generate::generateHaskell($f_in, $f_out, [['shift_left',['f','l','comp']]], !!1);
+  my $want = q!A
+-- AUTOGEN BEGIN
+foreign import ccall "hs_shift_left" shift_left :: Ptr CInt -> CInt -> FunPtr Compare -> IO ()
+
+foreign import ccall "hs_arr_shift_left" arr_shift_left :: Ptr CInt -> CInt -> FunPtr Compare -> IO ()
+
+prop_shift_left :: [CInt] -> Fun (CInt,CInt) CBool -> Property
+prop_shift_left xs (Fn2 p) = unsafePerformIO $ do
+    xs0 <- newArray xs
+    xs1 <- newArray xs
+    cmp <- mkCompare p
+    shift_left xs0 (genericLength xs) cmp
+    arr_shift_left xs1 (genericLength xs) cmp
+    xs0' <- peekArray (length xs) xs0
+    xs1' <- peekArray (length xs) xs1
+    pure $ xs0' === xs1'
+
+-- AUTOGEN END
+B
+!;
+  is($out, $want, 'generateHaskell arr p');
+}
+{
+  my $in = qq!A\n-- AUTOGEN BEGIN\nfoo\n-- AUTOGEN END\nB\n!;
+  open my $f_in, '<', \$in;
+  my $out = '';
+  open my $f_out, '>', \$out;
+  generate::generateHaskell($f_in, $f_out, [['shift_left',['f','l','p']]], !!1);
+  my $want = q!A
+-- AUTOGEN BEGIN
+foreign import ccall "hs_shift_left" shift_left :: Ptr CInt -> CInt -> FunPtr UnaryPred -> IO ()
+
+foreign import ccall "hs_arr_shift_left" arr_shift_left :: Ptr CInt -> CInt -> FunPtr UnaryPred -> IO ()
+
+prop_shift_left :: [CInt] -> Fun CInt CBool -> Property
+prop_shift_left xs (Fn p) = unsafePerformIO $ do
+    xs0 <- newArray xs
+    xs1 <- newArray xs
+    cmp <- mkUnaryPred p
+    shift_left xs0 (genericLength xs) cmp
+    arr_shift_left xs1 (genericLength xs) cmp
+    xs0' <- peekArray (length xs) xs0
+    xs1' <- peekArray (length xs) xs1
+    pure $ xs0' === xs1'
+
+-- AUTOGEN END
+B
+!;
+  is($out, $want, 'generateHaskell arr p');
+}
 
 # generateCWrappers
 {
@@ -169,6 +225,66 @@ extern "C" {
 };
 !;
     is($out, $want, 'generateCWrappers arr');
+}
+{
+    my $in = qq!A\nextern "C" {\nfoo\n};\n!;
+    open my $f_in, '<', \$in;
+    my $out = '';
+    open my $f_out, '>', \$out;
+    generate::generateCWrappers($f_in, $f_out, [['shift_left', ['f', 'l', 'comp']]], !!1);
+    my $want = q!A
+extern "C" {
+    void hs_shift_left(int *arr0, int len0, int (*comp)(int, int)) {
+      std::shift_left(arr0, arr0 + len0, comp);
+    }
+
+    void hs_arr_shift_left(int *arr0, int len0, int (*comp)(int, int)) {
+      arr_shift_left(arr0, arr0 + len0, comp);
+    }
+
+};
+!;
+    is($out, $want, 'generateCWrappers arr comp');
+}
+{
+    my $in = qq!A\nextern "C" {\nfoo\n};\n!;
+    open my $f_in, '<', \$in;
+    my $out = '';
+    open my $f_out, '>', \$out;
+    generate::generateCWrappers($f_in, $f_out, [['shift_left', ['f', 'l', 'p']]], !!1);
+    my $want = q!A
+extern "C" {
+    void hs_shift_left(int *arr0, int len0, int (*p)(int)) {
+      std::shift_left(arr0, arr0 + len0, p);
+    }
+
+    void hs_arr_shift_left(int *arr0, int len0, int (*p)(int)) {
+      arr_shift_left(arr0, arr0 + len0, p);
+    }
+
+};
+!;
+    is($out, $want, 'generateCWrappers arr p');
+}
+{
+    my $in = qq!A\nextern "C" {\nfoo\n};\n!;
+    open my $f_in, '<', \$in;
+    my $out = '';
+    open my $f_out, '>', \$out;
+    generate::generateCWrappers($f_in, $f_out, [['shift_left', ['f', 'l', 'f']]], !!1);
+    my $want = q!A
+extern "C" {
+    void hs_shift_left(int *arr0, int len0, int *arr1, int len1) {
+      std::shift_left(arr0, arr0 + len0, arr1);
+    }
+
+    void hs_arr_shift_left(int *arr0, int len0, int *arr1, int len1) {
+      arr_shift_left(arr0, arr0 + len0, arr1);
+    }
+
+};
+!;
+    is($out, $want, 'generateCWrappers arr xs ys');
 }
 
 done_testing();
