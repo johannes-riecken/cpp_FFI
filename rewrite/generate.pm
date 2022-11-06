@@ -109,9 +109,10 @@ sub generateCWrapperForArr {
       my @args;
       my @fwd_args;
       my @loops;
-      for (my $i = 0; $i < grep { $_ eq 'f' } $params->@*; $i++) {
-        push @args, "int *arr$i", "int len$i";
-        push @fwd_args, "arr$i", $i == 0 ? "arr$i + len$i" : ();
+      my $n = grep { $_ eq 'f' } $params->@*;
+      for (my $i = 0; $i < $n; $i++) {
+        push @args, "int *arr$i", $i > 0 && $i == $n - 1 ? () : "int len$i";
+        push @fwd_args, "arr$i", $i > 0 && $i == $n - 1 ? () : "arr$i + len$i";
       }
       push @ret, "$ret_types{$fn} hs_$_$fn(@{[join ', ', @args]}" . predicateParamSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', int val') . ') {';
       push @ret, "  @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . predicateArgSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', val') . ');';
@@ -127,9 +128,10 @@ sub generateCWrapper {
   for ('', 'my_') {
     my @args;
     my @fwd_args;
+    my $n = grep { $_ eq 'f' } $params->@*;
     for (my $i = 0; $i <  grep { $_ eq 'f' } $params->@*; $i++) {
-        push @args, "int *arr$i", "int len$i";
-        push @fwd_args, "arr$i", $i == 0 ? "arr$i + len$i" : ();
+        push @args, "int *arr$i", $i > 0 && $i == $n - 1 ? () : "int len$i";
+        push @fwd_args, "arr$i", $i > 0 && $i == $n - 1 ? () : "arr$i + len$i";
     }
     push @ret, "$ret_types{$fn} hs_$_$fn(@{[join ', ', @args]}" . predicateParamSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', int val') . ') {';
     if ($derefs{$fn}) {
@@ -159,9 +161,12 @@ sub derefRetTypeForHs {
 sub toTypes {
   my ($params) = @_;
   my @types;
+  my $i = 0;
+  my $n = grep { $_ eq 'f' } $params->@*;
   for ($params->@*) {
     if ($_ eq 'f') {
-      push @types, 'Ptr CInt', 'CInt';
+      push @types, 'Ptr CInt', $i > 0 && $i == $n - 1 ? () : 'CInt';
+      $i++;
     } elsif ($_ eq 'l') {
       # ignore
     } elsif ($_ eq 'comp') {
@@ -207,6 +212,8 @@ sub toCallParams {
     my ($params, $idx) = @_;
     my @ret;
     my @list_names = qw(xs ys);
+    my $n = grep { $_ eq 'f' } $params->@*;
+    my $i = 0;
     for ($params->@*) {
         if ($_ eq 'f') {
             my $var = shift @list_names;
@@ -215,7 +222,8 @@ sub toCallParams {
             } else {
               push @ret, "$var'";
             }
-            push @ret, "(genericLength $var)";
+            push @ret, $i > 0 && $i == $n - 1 ? () : "(genericLength $var)";
+            $i++;
         } elsif ($_ eq 'comp' || $_ eq 'p') {
             push @ret, 'cmp';
         } elsif ($_ eq 'val') {

@@ -51,15 +51,15 @@ prop_find xs = unsafePerformIO $ do
     xs' <- newArray xs
     pure $ find xs' (genericLength xs) === my_find xs' (genericLength xs)
 
-foreign import ccall "hs_equal" equal :: Ptr CInt -> CInt -> Ptr CInt -> CInt -> CBool
+foreign import ccall "hs_equal" equal :: Ptr CInt -> CInt -> Ptr CInt -> CBool
 
-foreign import ccall "hs_my_equal" my_equal :: Ptr CInt -> CInt -> Ptr CInt -> CInt -> CBool
+foreign import ccall "hs_my_equal" my_equal :: Ptr CInt -> CInt -> Ptr CInt -> CBool
 
 prop_equal :: [CInt] -> [CInt] -> Property
 prop_equal xs ys = unsafePerformIO $ do
     xs' <- newArray xs
     ys' <- newArray ys
-    pure $ equal xs' (genericLength xs) ys' (genericLength ys) === my_equal xs' (genericLength xs) ys' (genericLength ys)
+    pure $ equal xs' (genericLength xs) ys' === my_equal xs' (genericLength xs) ys'
 
 -- AUTOGEN END
 B
@@ -192,12 +192,12 @@ extern "C" {
       return std::distance(arr0, it);
     }
 
-    bool hs_equal(int *arr0, int len0, int *arr1, int len1) {
+    bool hs_equal(int *arr0, int len0, int *arr1) {
       auto ret = std::equal(arr0, arr0 + len0, arr1);
       return ret;
     }
 
-    bool hs_my_equal(int *arr0, int len0, int *arr1, int len1) {
+    bool hs_my_equal(int *arr0, int len0, int *arr1) {
       auto ret = my_equal(arr0, arr0 + len0, arr1);
       return ret;
     }
@@ -274,11 +274,11 @@ extern "C" {
     generate::generateCWrappers($f_in, $f_out, [['shift_left', ['f', 'l', 'f']]], !!1);
     my $want = q!A
 extern "C" {
-    void hs_shift_left(int *arr0, int len0, int *arr1, int len1) {
+    void hs_shift_left(int *arr0, int len0, int *arr1) {
       std::shift_left(arr0, arr0 + len0, arr1);
     }
 
-    void hs_arr_shift_left(int *arr0, int len0, int *arr1, int len1) {
+    void hs_arr_shift_left(int *arr0, int len0, int *arr1) {
       arr_shift_left(arr0, arr0 + len0, arr1);
     }
 
