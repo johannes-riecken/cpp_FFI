@@ -368,6 +368,34 @@ sub generateCWrappers {
     }
 }
 
+sub findImpl {
+  my ($f_in, $fn) = @_;
+  my $ret = '';
+  while (<$f_in>) {
+    if (my $ff = (0 == rindex $_, "auto $fn(", 0) .. $_ eq "\n") {
+      if (-1 == index $ff, 'E0', -2) {
+        $ret .= $_;
+      } else {
+        last;
+      }
+    }
+  }
+  return $ret;
+}
+
+sub insert {
+  my ($f_db, $f_in, $f_out, $fn) = @_;
+  my $impl = findImpl($f_db, $fn);
+  my $done = !!0;
+  while (<$f_in>) {
+    if (!$done && $_ eq "\n") {
+      $_ .= $impl . "\n";
+      $done = !!1;
+    }
+    print {$f_out} $_;
+  }
+}
+
 sub main {
     open my $f_cpp, '<', 'algorithm.cpp';
     my @sigs = parseSignatures($f_cpp);
@@ -400,6 +428,14 @@ sub main {
         cleanC($f_in, $f_out);
       }
       return;
+    }
+
+    if (@ARGV == 2 && $ARGV[0] eq '-i') {
+      open my $f_db, '<', 'algorithm.cpp.orig';
+      rename 'algorithm.cpp', 'algorithm.cpp.bak';
+      open my $f_in, '<', 'algorithm.cpp.bak';
+      open my $f_out, '>', 'algorithm.cpp';
+      insert($f_db, $f_in, $f_out, $ARGV[1]);
     }
 
     rename 'algorithm.cpp', 'algorithm.cpp.bak';

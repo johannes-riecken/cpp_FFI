@@ -343,4 +343,89 @@ extern "C" {
     is($out, $want, 'cleanC base case');
 }
 
+# findImpl
+{
+  my  $in = q!#include <algorithm>
+#include <numeric>
+#include <vector>
+#include <functional>
+#include <fmt/core.h>
+
+auto my_adjacent_find(auto f, auto l, auto comp) {
+    return std::mismatch(f, std::prev(l), std::next(f), std::not_fn(comp)).first;
+}
+
+auto my_is_partitioned(auto f, auto l, auto p) {
+    return std::is_sorted(f, l, [&](auto a, auto b) {
+        return p(b) < p(a);
+    });
+}
+
+auto my_partition_point(auto f, auto l, auto p) {
+    return std::find_if(f, l, std::not_fn(p));
+}
+!;
+  open my $f_in, '<', \$in;
+  my $want = q!auto my_is_partitioned(auto f, auto l, auto p) {
+    return std::is_sorted(f, l, [&](auto a, auto b) {
+        return p(b) < p(a);
+    });
+}
+!;
+  my $impl = generate::findImpl($f_in, 'my_is_partitioned');
+  is($impl, $want, 'findImpl base case');
+}
+
+# insert
+{
+  my  $db = q!#include <algorithm>
+#include <numeric>
+#include <vector>
+#include <functional>
+#include <fmt/core.h>
+
+auto my_adjacent_find(auto f, auto l, auto comp) {
+    return std::mismatch(f, std::prev(l), std::next(f), std::not_fn(comp)).first;
+}
+
+auto my_is_partitioned(auto f, auto l, auto p) {
+    return std::is_sorted(f, l, [&](auto a, auto b) {
+        return p(b) < p(a);
+    });
+}
+
+auto my_partition_point(auto f, auto l, auto p) {
+    return std::find_if(f, l, std::not_fn(p));
+}
+!;
+  open my $f_db, '<', \$db;
+  my $in = q!#include <algorithm>
+#include <numeric>
+#include <vector>
+#include <functional>
+#include <cstdio>
+
+extern "C" {
+};
+!;
+  open my $f_in, '<', \$in;
+  my $out = '';
+  open my $f_out, '>', \$out;
+  my $want = q!#include <algorithm>
+#include <numeric>
+#include <vector>
+#include <functional>
+#include <cstdio>
+
+auto my_partition_point(auto f, auto l, auto p) {
+    return std::find_if(f, l, std::not_fn(p));
+}
+
+extern "C" {
+};
+!;
+  generate::insert($f_db, $f_in, $f_out, 'my_partition_point');
+  is($out, $want, 'insert base case');
+}
+
 done_testing();
