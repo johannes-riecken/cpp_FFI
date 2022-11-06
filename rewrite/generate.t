@@ -287,4 +287,60 @@ extern "C" {
     is($out, $want, 'generateCWrappers arr xs ys');
 }
 
+# cleanHaskell
+{
+  my $in = q!A
+-- AUTOGEN BEGIN
+foo
+bar
+-- AUTOGEN END
+main :: IO ()
+main = do
+    quickCheck foo
+    quickCheck bar
+!;
+    open my $f_in, '<', \$in;
+    my $out = '';
+    open my $f_out, '>', \$out;
+    generate::cleanHaskell($f_in, $f_out);
+    my $want = q!A
+-- AUTOGEN BEGIN
+-- AUTOGEN END
+main :: IO ()
+main = do
+    pure ()
+!;
+  is($out, $want, 'cleanHaskell base case');
+}
+
+# cleanC
+{
+  my $in = q!#include <algorithm>
+#include <numeric>
+
+auto my_equal(auto f, auto l) {
+    return 1;
+}
+
+extern "C" {
+    int hs_my_equal() {
+    }
+
+    int my_equal() {
+    }
+};
+!;
+    open my $f_in, '<', \$in;
+    my $out = '';
+    open my $f_out, '>', \$out;
+    generate::cleanC($f_in, $f_out);
+    my $want = q!#include <algorithm>
+#include <numeric>
+
+extern "C" {
+};
+!;
+    is($out, $want, 'cleanC base case');
+}
+
 done_testing();

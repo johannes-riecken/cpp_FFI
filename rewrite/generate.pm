@@ -122,6 +122,43 @@ sub generateCWrapperForArr {
     return @ret;
 }
 
+sub cleanHaskell {
+  my ($f_in, $f_out) = @_;
+  while (<$f_in>) {
+    if (my $ff = $_ eq "-- AUTOGEN BEGIN\n" .. $_ eq "-- AUTOGEN END\n") {
+      if ($ff > 1 && -1 == index $ff, 'E0') {
+        $_ = '';
+      }
+    } elsif (my $ff2 = ($_ eq "main = do\n" .. !!0)) {
+      if ($ff2 > 1) {
+        $_ = '';
+      }
+    }
+    print {$f_out} $_;
+  }
+  say {$f_out} '    pure ()';
+}
+
+sub cleanC {
+  my ($f_in, $f_out) = @_;
+  my $ff;
+  while (<$f_in>) {
+    if ($ff = $_ eq "\n" .. $_ eq "extern \"C\" {\n") {
+      if ($ff > 1 && -1 == index $ff, 'E0') {
+        $_ = '';
+      }
+    }
+    print {$f_out} $_;
+    last if $ff && (-1 != index $ff, 'E0');
+  }
+  while (<$f_in>) {
+    if ($_ ne "};\n") {
+      $_ = '';
+    }
+    print {$f_out} $_;
+  }
+}
+
 sub generateCWrapper {
   my ($fn, $params) = @_;
   my @ret;
@@ -348,6 +385,23 @@ sub main {
         }
         return;
     }
+
+    if (@ARGV && $ARGV[0] eq '-c') {
+      {
+        rename 'Algo.hs', 'Algo.hs.bak';
+        open my $f_in, '<', 'Algo.hs.bak';
+        open my $f_out, '>', 'Algo.hs';
+        cleanHaskell($f_in, $f_out);
+      }
+      {
+        rename 'algorithm.cpp', 'algorithm.cpp.bak';
+        open my $f_in, '<', 'algorithm.cpp.bak';
+        open my $f_out, '>', 'algorithm.cpp';
+        cleanC($f_in, $f_out);
+      }
+      return;
+    }
+
     rename 'algorithm.cpp', 'algorithm.cpp.bak';
     open my $f_in, '<', 'algorithm.cpp.bak';
     open my $f_out, '>', 'algorithm.cpp';
