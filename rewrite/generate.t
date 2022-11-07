@@ -32,6 +32,17 @@ use autodie;
   my @want = ['foo', ['bar', 'baz']];
   is_deeply(\@got, \@want, 'parseArrSignatures base case');
 }
+{
+  my $in = qq!auto arr_foo(auto bar, auto baz) {\n\nauto my_bar(auto quux) {\nextern "C" {\n!;
+  open my $f_in, '<', \$in;
+  my @got0 = generate::parseSignatures($f_in, !!1);
+  seek $f_in, 0, 0;
+  my @got1 = generate::parseSignatures($f_in);
+  my @want0 = ['foo', ['bar', 'baz']];
+  my @want1 = ['bar', ['quux']];
+  is_deeply(\@got0, \@want0, 'parseArrSignatures base case');
+  is_deeply(\@got1, \@want1, 'parseArrSignatures my case');
+}
 
 # generateHaskell
 {
@@ -115,6 +126,33 @@ prop_shift_left xs x = unsafePerformIO $ do
 B
 !;
   is($out, $want, 'generateHaskell arr');
+}
+{
+  my $in = qq!A\n-- AUTOGEN BEGIN\nfoo\n-- AUTOGEN END\nB\n!;
+  open my $f_in, '<', \$in;
+  my $out = '';
+  open my $f_out, '>', \$out;
+  generate::generateHaskell($f_in, $f_out, [['shift_left',['f','l','i']]], !!1);
+  my $want = q!A
+-- AUTOGEN BEGIN
+foreign import ccall "hs_shift_left" shift_left :: Ptr CInt -> CInt -> CInt -> IO ()
+
+foreign import ccall "hs_arr_shift_left" arr_shift_left :: Ptr CInt -> CInt -> CInt -> IO ()
+
+prop_shift_left :: [CInt] -> Property
+prop_shift_left xs = forAll (choose (0,genericLength xs - 1)) $ \x -> unsafePerformIO $ do
+    xs0 <- newArray xs
+    xs1 <- newArray xs
+    shift_left xs0 (genericLength xs) x
+    arr_shift_left xs1 (genericLength xs) x
+    xs0' <- peekArray (length xs) xs0
+    xs1' <- peekArray (length xs) xs1
+    pure $ xs0' === xs1'
+
+-- AUTOGEN END
+B
+!;
+  is($out, $want, 'generateHaskell arr i');
 }
 {
   my $in = qq!A\n-- AUTOGEN BEGIN\nfoo\n-- AUTOGEN END\nB\n!;

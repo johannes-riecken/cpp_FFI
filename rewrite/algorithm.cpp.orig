@@ -79,8 +79,8 @@ auto my_find(auto f, auto l, auto val) {
 }
 
 // modifying
-auto arr_shift_left(auto f, auto l, auto val) {
-    return std::copy(f + val, l, f);
+auto arr_shift_left(auto f, auto l, auto i) {
+    return std::copy(f + i, l, f);
 }
 
 void my_shift_right(int *arr, int len, int n) {
