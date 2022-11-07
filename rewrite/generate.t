@@ -28,7 +28,7 @@ use autodie;
 {
   my $in = qq!auto arr_foo(auto bar, auto baz) {\nextern "C" {\n!;
   open my $f_in, '<', \$in;
-  my @got = generate::parseArrSignatures($f_in);
+  my @got = generate::parseSignatures($f_in, !!1);
   my @want = ['foo', ['bar', 'baz']];
   is_deeply(\@got, \@want, 'parseArrSignatures base case');
 }

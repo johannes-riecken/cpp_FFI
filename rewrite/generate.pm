@@ -5,7 +5,8 @@ use Data::Dumper;
 use FindBin qw($Bin);
 use lib "$Bin";
 use autodie;
-use List::Util qw(any);
+use List::Util qw(any first);
+use warnings qw(FATAL);
 
 my %derefs = (
   'adjacent_find' => '*',
@@ -40,6 +41,48 @@ my %ret_types = (
   'shift_left' => 'void',
 );
 
+sub myPrefix {
+  return $_[0] ? 'arr_' : 'my_';
+}
+
+sub isPredicate {
+  my ($fn) = @_;
+  return $fn eq 'comp' || $fn eq 'p';
+}
+
+my %pred_types = (
+  'comp' => 'Compare',
+  'p' => 'UnaryPred',
+);
+
+my %pred_qc_types = (
+  'comp' => 'Fun (CInt,CInt) CBool',
+  'p' => 'Fun CInt CBool',
+);
+
+sub predCTypes {
+  my ($fn) = @_;
+  my (undef, $param_types, $ret_type) = split / /, $pred_qc_types{$fn};
+  if ('(' eq substr $param_types, 0, 1) {
+    $param_types = substr $param_types, 1, -1;
+  }
+  my @param_types = split /,/, $param_types;
+  my %hs_to_c = ('CInt' => 'int', 'CBool' => 'int');
+  my @c_param_types = map { $hs_to_c{$_} } @param_types;
+  my $c_ret_type = $hs_to_c{$ret_type};
+  return "$c_ret_type (*$fn)(@{[join ', ', @c_param_types]})";
+}
+
+sub mkPred {
+  return "mk\u$pred_types{$_[0]}";
+}
+
+sub predParamSuffix {
+  my ($fn) = @_;
+  return '' unless $fn;
+  return ", @{[predCTypes($fn)]}[0]";
+}
+
 sub generateProperties {
   my ($fn, $params, $is_arr) = @_;
   my $ret = '';
@@ -60,10 +103,8 @@ sub generateProperties {
           } else {
             $ret .= "    $name' <- newArray $name\n";
           }
-      } elsif ($_ eq 'comp') {
-          $ret .= "    cmp <- mkCompare p\n";
-      } elsif ($_ eq 'p') {
-          $ret .= "    cmp <- mkUnaryPred p\n";
+      } elsif (isPredicate($_)) {
+          $ret .= "    cmp <- @{[mkPred($_)]} p\n";
       }
   }
   my $call_params = toCallParamsStr($params);
@@ -83,43 +124,33 @@ sub generateProperties {
 }
 
 sub predicateParamSuffix {
-    my ($params) = @_;
-    if (any { $_ eq 'comp' } $params->@*) {
-        return ', int (*comp)(int, int)';
-    } elsif (any {$_ eq 'p' } $params->@*) {
-        return ', int (*p)(int)';
-    }
-    return '';
+  my ($params) = @_;
+  return predParamSuffix(predicateArg($params));
+}
+
+sub predicateArg {
+  my ($params) = @_;
+  my $pred = first { isPredicate($_) } $params->@*;
+  return $pred // '';
 }
 
 sub predicateArgSuffix {
-    my ($params) = @_;
-    if (any { $_ eq 'comp' } $params->@*) {
-        return ', comp';
-    } elsif (any {$_ eq 'p' } $params->@*) {
-        return ', p';
-    }
-    return '';
+  my ($params) = @_;
+  my $pred = predicateArg($params);
+  return $pred && ", $pred";
 }
 
-sub generateCWrapperForArr {
-    my ($fn, $params) = @_;
-    my @ret;
-    for ('', 'arr_') {
-      my @args;
-      my @fwd_args;
-      my @loops;
-      my $n = grep { $_ eq 'f' } $params->@*;
-      for (my $i = 0; $i < $n; $i++) {
-        push @args, "int *arr$i", $i > 0 && $i == $n - 1 ? () : "int len$i";
-        push @fwd_args, "arr$i", $i > 0 && $i == $n - 1 ? () : "arr$i + len$i";
-      }
-      push @ret, "$ret_types{$fn} hs_$_$fn(@{[join ', ', @args]}" . predicateParamSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', int val') . ') {';
-      push @ret, "  @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . predicateArgSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', val') . ');';
-      push @ret, '}';
-      push @ret, '';
-    }
-    return @ret;
+sub generateCWrapperRetVal {
+  my ($fn, $prefix, $params, @fwd_args) = @_;
+  my @ret;
+  my %ret_names = ('*' => 'it', '' => 'ret');
+  push @ret, "  auto $ret_names{$derefs{$fn}} = @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . predicateArgSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', val') . ');';
+  if ($derefs{$fn}) {
+      push @ret, '  return std::distance(arr0, it);';
+  } else {
+      push @ret, '  return ret;';
+  }
+  return @ret;
 }
 
 sub cleanHaskell {
@@ -160,23 +191,21 @@ sub cleanC {
 }
 
 sub generateCWrapper {
-  my ($fn, $params) = @_;
+  my ($fn, $params, $is_arr) = @_;
   my @ret;
-  for ('', 'my_') {
+  for ('', myPrefix($is_arr)) {
     my @args;
     my @fwd_args;
     my $n = grep { $_ eq 'f' } $params->@*;
-    for (my $i = 0; $i <  grep { $_ eq 'f' } $params->@*; $i++) {
+    for (my $i = 0; $i < $n; $i++) {
         push @args, "int *arr$i", $i > 0 && $i == $n - 1 ? () : "int len$i";
         push @fwd_args, "arr$i", $i > 0 && $i == $n - 1 ? () : "arr$i + len$i";
     }
     push @ret, "$ret_types{$fn} hs_$_$fn(@{[join ', ', @args]}" . predicateParamSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', int val') . ') {';
-    if ($derefs{$fn}) {
-        push @ret, "  auto it = @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . predicateArgSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', val') . ');';
-        push @ret, '  return std::distance(arr0, it);';
+    if ($is_arr) {
+      push @ret, "  @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . predicateArgSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', val') . ');';
     } else {
-        push @ret, "  auto ret = @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . predicateArgSuffix($params) . ((any { $_ eq 'val' } $params->@*) && ', val') . ');';
-        push @ret, '  return ret;';
+      push @ret, generateCWrapperRetVal($fn, $_, $params, @fwd_args);
     }
     push @ret, '}';
     push @ret, '';
@@ -206,10 +235,8 @@ sub toTypes {
       $i++;
     } elsif ($_ eq 'l') {
       # ignore
-    } elsif ($_ eq 'comp') {
-      push @types, 'FunPtr Compare';
-    } elsif ($_ eq 'p') {
-      push @types, 'FunPtr UnaryPred';
+    } elsif (isPredicate($_)) {
+      push @types, "FunPtr $pred_types{$_}";
     } elsif ($_ eq 'val') {
       push @types, 'CInt';
     }
@@ -227,19 +254,23 @@ sub toPropTypeSpec {
     return join ' -> ', toPropTypes($params);
 }
 
+sub paramType {
+  my ($fn) = @_;
+  if (isPredicate($fn)) {
+    return $pred_qc_types{$fn};
+  }
+  my %types = (
+    'f' => '[CInt]',
+    'val' => 'CInt',
+  );
+  return $types{$fn} // ();
+}
+
 sub toPropTypes {
     my ($params) = @_;
     my @types;
     for ($params->@*) {
-        if ($_ eq 'f') {
-            push @types, '[CInt]';
-        } elsif ($_ eq 'comp') {
-            push @types, 'Fun (CInt,CInt) CBool';
-        } elsif ($_ eq 'p') {
-            push @types, 'Fun CInt CBool';
-        } elsif ($_ eq 'val') {
-            push @types, 'CInt';
-        }
+        push @types, paramType($_);
     }
     push @types, 'Property';
     return @types;
@@ -261,7 +292,7 @@ sub toCallParams {
             }
             push @ret, $i > 0 && $i == $n - 1 ? () : "(genericLength $var)";
             $i++;
-        } elsif ($_ eq 'comp' || $_ eq 'p') {
+        } elsif (isPredicate($_)) {
             push @ret, 'cmp';
         } elsif ($_ eq 'val') {
             push @ret, 'x';
@@ -299,11 +330,12 @@ sub toPropParams {
 }
 
 sub parseSignatures {
-    my ($f_in) = @_;
+    my ($f_in, $is_arr) = @_;
     my @sigs;
     while (<$f_in>) {
         if (!!1 .. $_ eq qq!extern "C" {\n!) {
-            if (/^auto my_(\w++)\(([^\(\)]*+)\) \{$/) {
+          my $prefix = myPrefix($is_arr);
+            if (/^auto ${prefix}(\w++)\(([^\(\)]*+)\) \{$/) {
                 my $fn = $1;
                 my $params_str = $2;
                 my @params = map { s/^auto ([[:alpha:]]++).*+/$1/r } split ', ', $params_str;
@@ -313,23 +345,6 @@ sub parseSignatures {
     }
     return @sigs;
 }
-
-sub parseArrSignatures {
-    my ($f_in) = @_;
-    my @sigs;
-    while (<$f_in>) {
-        if (!!1 .. $_ eq qq!extern "C" {\n!) {
-            if (/^auto arr_(\w++)\(([^\(\)]*+)\) \{$/) {
-                my $fn = $1;
-                my $params_str = $2;
-                my @params = map { s/^auto ([[:alpha:]]++).*+/$1/r } split ', ', $params_str;
-                push @sigs, [$fn, \@params];
-            }
-        }
-    }
-    return @sigs;
-}
-
 
 sub generateHaskell {
     my ($f_in, $f_out, $sigs, $is_arr) = @_;
@@ -356,9 +371,9 @@ sub generateCWrappers {
             if ($ff == 1) {
                 for my $sig ($sigs->@*) {
                     if ($is_arr) {
-                      print {$f_out} join '', map { "$_\n" =~ s/./    $&/r } generateCWrapperForArr($sig->[0], $sig->[1]);
+                      print {$f_out} join '', map { "$_\n" =~ s/./    $&/r } generateCWrapper($sig->[0], $sig->[1], $is_arr);
                     } else {
-                      print {$f_out} join '', map { "$_\n" =~ s/./    $&/r } generateCWrapper($sig->[0], $sig->[1]);
+                      print {$f_out} join '', map { "$_\n" =~ s/./    $&/r } generateCWrapper($sig->[0], $sig->[1], $is_arr);
                     }
                 }
             }
@@ -400,7 +415,7 @@ sub main {
     open my $f_cpp, '<', 'algorithm.cpp';
     my @sigs = parseSignatures($f_cpp);
     seek $f_cpp, 0, 0;
-    my @arr_sigs = parseArrSignatures($f_cpp);
+    my @arr_sigs = parseSignatures($f_cpp, !!1);
     close $f_cpp;
     if (@ARGV && $ARGV[0] eq '-h') {
         rename 'Algo.hs', 'Algo.hs.bak';
