@@ -37,8 +37,10 @@ my %ret_types = (
   'lower_bound' => 'int',
   'none_of' => 'bool',
   'partition_point' => 'int',
-  'upper_bound' => 'int',
+  'replace' => 'void',
   'shift_left' => 'void',
+  'shift_right' => 'void',
+  'upper_bound' => 'int',
 );
 
 sub myPrefix {
@@ -374,6 +376,10 @@ sub generateHaskell {
                     print {$f_out} generateProperties($sig->[0], $sig->[1], $is_arr);
                 }
             }
+        } elsif ($_ eq "    pure ()\n") {
+          for my $sig ($sigs->@*) {
+            say {$f_out} "    quickCheck prop_$sig->[0]"
+          }
         } else {
             print {$f_out} $_;
         }

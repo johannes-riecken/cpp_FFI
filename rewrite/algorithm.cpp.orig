@@ -83,15 +83,12 @@ auto arr_shift_left(auto f, auto l, auto i) {
     return std::copy(f + i, l, f);
 }
 
-void my_shift_right(int *arr, int len, int n) {
- if (len == 0) {
-   return;
- }
- std::copy_backward(arr, arr + len - n, arr + len);
+auto arr_shift_right(auto f, auto l, auto i) {
+ std::copy_backward(f, l - i, l);
 }
 
-void my_replace(int *arr, int len, int val0, int val1) {
- std::transform(arr, arr + len, arr, [&](int a) {
+auto arr_replace(auto f, auto l, auto val0, auto val1) {
+ std::transform(f, l, f, [&](int a) {
      return a == val0 ? val1 : a;
      });
 }

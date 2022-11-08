@@ -79,6 +79,18 @@ B
   is($out, $want, 'generateHaskell base case');
 }
 {
+  my $in = qq!A\n    pure ()\n!;
+  open my $f_in, '<', \$in;
+  my $out = '';
+  open my $f_out, '>', \$out;
+  generate::generateHaskell($f_in, $f_out, [['find', ['f', 'l']], ['equal', ['f', 'l', 'f']]]);
+  my $want = q!A
+    quickCheck prop_find
+    quickCheck prop_equal
+!;
+  is($out, $want, 'generateHaskell pure ()');
+}
+{
   my $in = qq!A\n-- AUTOGEN BEGIN\nfoo\n-- AUTOGEN END\nB\n!;
   open my $f_in, '<', \$in;
   my $out = '';
