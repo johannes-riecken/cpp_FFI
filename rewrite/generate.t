@@ -103,9 +103,9 @@ foreign import ccall "hs_find" find :: Ptr CInt -> CInt -> CInt -> CInt
 foreign import ccall "hs_my_find" my_find :: Ptr CInt -> CInt -> CInt -> CInt
 
 prop_find :: [CInt] -> CInt -> Property
-prop_find xs x = unsafePerformIO $ do
+prop_find xs x0 = unsafePerformIO $ do
     xs' <- newArray xs
-    pure $ find xs' (genericLength xs) x === my_find xs' (genericLength xs) x
+    pure $ find xs' (genericLength xs) x0 === my_find xs' (genericLength xs) x0
 
 -- AUTOGEN END
 B
@@ -125,11 +125,11 @@ foreign import ccall "hs_shift_left" shift_left :: Ptr CInt -> CInt -> CInt -> I
 foreign import ccall "hs_arr_shift_left" arr_shift_left :: Ptr CInt -> CInt -> CInt -> IO ()
 
 prop_shift_left :: [CInt] -> CInt -> Property
-prop_shift_left xs x = unsafePerformIO $ do
+prop_shift_left xs x0 = unsafePerformIO $ do
     xs0 <- newArray xs
     xs1 <- newArray xs
-    shift_left xs0 (genericLength xs) x
-    arr_shift_left xs1 (genericLength xs) x
+    shift_left xs0 (genericLength xs) x0
+    arr_shift_left xs1 (genericLength xs) x0
     xs0' <- peekArray (length xs) xs0
     xs1' <- peekArray (length xs) xs1
     pure $ xs0' === xs1'
@@ -152,11 +152,11 @@ foreign import ccall "hs_shift_left" shift_left :: Ptr CInt -> CInt -> CInt -> I
 foreign import ccall "hs_arr_shift_left" arr_shift_left :: Ptr CInt -> CInt -> CInt -> IO ()
 
 prop_shift_left :: [CInt] -> Property
-prop_shift_left xs = forAll (choose (0,genericLength xs - 1)) $ \x -> unsafePerformIO $ do
+prop_shift_left xs = forAll (choose (0,genericLength xs - 1)) $ \x0 -> unsafePerformIO $ do
     xs0 <- newArray xs
     xs1 <- newArray xs
-    shift_left xs0 (genericLength xs) x
-    arr_shift_left xs1 (genericLength xs) x
+    shift_left xs0 (genericLength xs) x0
+    arr_shift_left xs1 (genericLength xs) x0
     xs0' <- peekArray (length xs) xs0
     xs1' <- peekArray (length xs) xs1
     pure $ xs0' === xs1'
@@ -264,17 +264,38 @@ extern "C" {
     generate::generateCWrappers($f_in, $f_out, [['shift_left', ['f', 'l', 'val']]], !!1);
     my $want = q!A
 extern "C" {
-    void hs_shift_left(int *arr0, int len0, int val) {
-      std::shift_left(arr0, arr0 + len0, val);
+    void hs_shift_left(int *arr0, int len0, int val0) {
+      std::shift_left(arr0, arr0 + len0, val0);
     }
 
-    void hs_arr_shift_left(int *arr0, int len0, int val) {
-      arr_shift_left(arr0, arr0 + len0, val);
+    void hs_arr_shift_left(int *arr0, int len0, int val0) {
+      arr_shift_left(arr0, arr0 + len0, val0);
     }
 
 };
 !;
     is($out, $want, 'generateCWrappers arr');
+}
+{
+  my $in = q!extern "C" {
+};
+!;
+  open my $f_in, '<', \$in;
+  my $out = '';
+  open my $f_out, '>', \$out;
+  generate::generateCWrappers($f_in, $f_out, [['replace', ['f', 'l', 'val', 'val']]], !!1);
+  my $want = q!extern "C" {
+    void hs_replace(int *arr0, int len0, int val0, int val1) {
+      std::replace(arr0, arr0 + len0, val0, val1);
+    }
+
+    void hs_arr_replace(int *arr0, int len0, int val0, int val1) {
+      arr_replace(arr0, arr0 + len0, val0, val1);
+    }
+
+};
+!;
+  is($out, $want, 'generateCWrappers arr val0 val1');
 }
 {
     my $in = qq!A\nextern "C" {\nfoo\n};\n!;

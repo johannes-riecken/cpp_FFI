@@ -86,7 +86,7 @@ sub predParamSuffix {
 }
 
 sub forAllSpec {
-  return (grep { $_ eq 'i' } $_[0]->@*) ? 'forAll (choose (0,genericLength xs - 1)) $ \x -> ' : ''
+  return (grep { $_ eq 'i' } $_[0]->@*) ? 'forAll (choose (0,genericLength xs - 1)) $ \x0 -> ' : ''
 }
 
 sub generateProperties {
@@ -199,14 +199,16 @@ sub cleanC {
 
 sub valForC {
   my ($params) = @_;
-  my $val = first { $_ eq 'val' || $_ eq 'i' } $params->@*;
-  return $val && ", $val" || '';
+  my @vals = grep { $_ eq 'val' || $_ eq 'i' } $params->@*;
+  my $i = 0;
+  @vals = map { "$_" . $i++ } @vals;
+  return @vals && ", @{[join ', ', @vals]}" || '';
 }
 
 sub valSuffixForC {
   my ($params) = @_;
   my $val = valForC($params);
-  return $val =~ s/, /, int /r;
+  return $val =~ s/, /, int /rg;
 }
 
 sub generateCWrapper {
@@ -302,7 +304,8 @@ sub toCallParams {
     my @ret;
     my @list_names = qw(xs ys);
     my $n = grep { $_ eq 'f' } $params->@*;
-    my $i = 0;
+    my $i_f = 0;
+    my $i_x = 0;
     for ($params->@*) {
         if ($_ eq 'f') {
             my $var = shift @list_names;
@@ -311,12 +314,13 @@ sub toCallParams {
             } else {
               push @ret, "$var'";
             }
-            push @ret, $i > 0 && $i == $n - 1 ? () : "(genericLength $var)";
-            $i++;
+            push @ret, $i_f > 0 && $i_f == $n - 1 ? () : "(genericLength $var)";
+            $i_f++;
         } elsif (isPredicate($_)) {
             push @ret, 'cmp';
         } elsif ($_ eq 'val' || $_ eq 'i') {
-            push @ret, 'x';
+            push @ret, "x$i_x";
+            $i_x++;
         }
     }
     return @ret;
@@ -336,6 +340,7 @@ sub toPropParams {
     my ($types) = @_;
     my @list_names = qw(xs ys);
     my @params;
+    my $i_x = 0;
     for ($types->@*) {
         if ($_ eq '[CInt]') {
             push @params, shift @list_names;
@@ -344,7 +349,8 @@ sub toPropParams {
         } elsif ($_ eq 'Fun CInt CBool') {
             push @params, '(Fn p)';
         } elsif ($_ eq 'CInt') {
-            push @params, 'x';
+            push @params, "x$i_x";
+            $i_x++;
         }
     }
     return @params;
