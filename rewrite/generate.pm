@@ -44,6 +44,10 @@ my %ret_types = (
   'upper_bound' => 'int',
 );
 
+sub retType {
+  return $ret_types{$_[0]} // 'void'
+}
+
 sub myPrefix {
   return $_[0] ? 'arr_' : 'my_';
 }
@@ -248,7 +252,8 @@ sub generateCWrapper {
         push @args, "int *arr$i", $i > 0 && $i == $n - 1 ? () : "int len$i";
         push @fwd_args, "arr$i", $i > 0 && $i == $n - 1 ? () : "arr$i + len$i";
     }
-    push @ret, "$ret_types{$fn} hs_$_$fn(@{[join ', ', @args]}" . predicateParamSuffix($params) . valSuffixForC($params) . ') {';
+    my $ret_type = retType($fn);
+    push @ret, "$ret_type hs_$_$fn(@{[join ', ', @args]}" . predicateParamSuffix($params) . valSuffixForC($params) . ') {';
     if ($is_arr) {
       push @ret, "  @{[$_ || 'std::']}$fn(@{[join ', ', @fwd_args]}" . predicateArgSuffix($params) . valForC($params) . ');';
     } else {
@@ -262,7 +267,7 @@ sub generateCWrapper {
 
 sub derefRetTypeForHs {
   my ($fn) = @_;
-  my $ret = $ret_types{$fn};
+  my $ret = retType($fn);
   if ($ret eq 'void') {
     return 'IO ()';
   }

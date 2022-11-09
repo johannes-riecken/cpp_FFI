@@ -1,4 +1,5 @@
-import Data.List hiding (find)
+import Prelude hiding (reverse)
+import Data.List hiding (find, sort, reverse)
 import Foreign.C
 import Foreign.Ptr
 import Foreign.Marshal.Array

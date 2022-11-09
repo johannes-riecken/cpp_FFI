@@ -3,6 +3,7 @@
 #include <vector>
 #include <functional>
 #include <fmt/core.h>
+#include <iterator>
 
 auto my_adjacent_find(auto f, auto l, auto comp) {
     return std::mismatch(f, std::prev(l), std::next(f), std::not_fn(comp)).first;
@@ -97,6 +98,21 @@ auto arr_generate(auto f, auto l, auto gen) {
   std::transform(f, l, [&](int a) {
       return gen();
       });
+}
+
+auto arr_sort(auto f, auto l) {
+    for (auto it = f; it != l; ++it)
+        std::iter_swap(it, std::min_element(it, l));
+}
+
+auto arr_reverse(auto f, auto l) {
+    std::inner_product(
+        f,
+        f + std::distance(f, l) / 2,
+        std::reverse_iterator(l),
+        f,
+        [&](auto acc, auto x) { return ++acc; },
+        [&](auto &a, auto &b) { std::swap(a, b); return 0; });
 }
 
 extern "C" {
