@@ -7,6 +7,7 @@ use lib "$Bin";
 use generate;
 use Test::More;
 use autodie;
+use Test::Differences;
 
 # parseSignatures
 {
@@ -14,14 +15,14 @@ use autodie;
   open my $f_in, '<', \$in;
   my @got = generate::parseSignatures($f_in);
   my @want = (['foo', ['bar', 'baz']]);
-  is_deeply(\@got, \@want, 'parseSignatures base case');;
+  eq_or_diff(\@got, \@want, 'parseSignatures base case');;
 }
 {
   my $in = qq!auto my_foo(auto f, auto l, auto f2, auto comp = std::less_equal{}) {\nextern "C" {\n!;
   open my $f_in, '<', \$in;
   my @got = generate::parseSignatures($f_in);
   my @want = (['foo', ['f', 'l', 'f', 'comp']]);
-  is_deeply(\@got, \@want, 'parseSignatures f2');;
+  eq_or_diff(\@got, \@want, 'parseSignatures f2');;
 }
 
 # parseArrSignatures
@@ -30,7 +31,7 @@ use autodie;
   open my $f_in, '<', \$in;
   my @got = generate::parseSignatures($f_in, !!1);
   my @want = ['foo', ['bar', 'baz']];
-  is_deeply(\@got, \@want, 'parseArrSignatures base case');
+  eq_or_diff(\@got, \@want, 'parseArrSignatures base case');
 }
 {
   my $in = qq!auto arr_foo(auto bar, auto baz) {\n\nauto my_bar(auto quux) {\nextern "C" {\n!;
@@ -40,8 +41,8 @@ use autodie;
   my @got1 = generate::parseSignatures($f_in);
   my @want0 = ['foo', ['bar', 'baz']];
   my @want1 = ['bar', ['quux']];
-  is_deeply(\@got0, \@want0, 'parseArrSignatures base case');
-  is_deeply(\@got1, \@want1, 'parseArrSignatures my case');
+  eq_or_diff(\@got0, \@want0, 'parseArrSignatures base case');
+  eq_or_diff(\@got1, \@want1, 'parseArrSignatures my case');
 }
 
 # generateHaskell
@@ -76,7 +77,7 @@ prop_equal xs ys = unsafePerformIO $ do
 B
 !;
 
-  is($out, $want, 'generateHaskell base case');
+  eq_or_diff($out, $want, 'generateHaskell base case');
 }
 {
   my $in = qq!A\n    pure ()\n!;
@@ -88,7 +89,7 @@ B
     quickCheck prop_find
     quickCheck prop_equal
 !;
-  is($out, $want, 'generateHaskell pure ()');
+  eq_or_diff($out, $want, 'generateHaskell pure ()');
 }
 {
   my $in = qq!A\n-- AUTOGEN BEGIN\nfoo\n-- AUTOGEN END\nB\n!;
@@ -110,7 +111,7 @@ prop_find xs x0 = unsafePerformIO $ do
 -- AUTOGEN END
 B
 !;
-  is($out, $want, 'generateHaskell val');
+  eq_or_diff($out, $want, 'generateHaskell val');
 }
 {
   my $in = qq!A\n-- AUTOGEN BEGIN\nfoo\n-- AUTOGEN END\nB\n!;
@@ -137,7 +138,38 @@ prop_shift_left xs x0 = unsafePerformIO $ do
 -- AUTOGEN END
 B
 !;
-  is($out, $want, 'generateHaskell arr');
+  eq_or_diff($out, $want, 'generateHaskell arr');
+}
+{
+  my $in = qq!A\n-- AUTOGEN BEGIN\nfoo\n-- AUTOGEN END\nB\n!;
+  open my $f_in, '<', \$in;
+  my $out = '';
+  open my $f_out, '>', \$out;
+  generate::generateHaskell($f_in, $f_out, [['generate',['f','l','gen']]], !!1);
+  my $want = q!A
+-- AUTOGEN BEGIN
+foreign import ccall "hs_generate" generate :: Ptr CInt -> CInt -> FunPtr Generator -> IO ()
+
+foreign import ccall "hs_arr_generate" arr_generate :: Ptr CInt -> CInt -> FunPtr Generator -> IO ()
+
+prop_generate :: [CInt] -> Fun CInt (CInt,CInt) -> Property
+prop_generate xs (Fn p) = unsafePerformIO $ do
+    xs0 <- newArray xs
+    xs1 <- newArray xs
+    x_ref <- newIORef 0
+    cmp <- mkGenerator $ stateFnToIORef p x_ref
+    generate xs0 (genericLength xs) cmp
+    x_ref <- newIORef 0
+    cmp <- mkGenerator $ stateFnToIORef p x_ref
+    arr_generate xs1 (genericLength xs) cmp
+    xs0' <- peekArray (length xs) xs0
+    xs1' <- peekArray (length xs) xs1
+    pure $ xs0' === xs1'
+
+-- AUTOGEN END
+B
+!;
+  eq_or_diff($out, $want, 'generateHaskell arr generator');
 }
 {
   my $in = qq!A\n-- AUTOGEN BEGIN\nfoo\n-- AUTOGEN END\nB\n!;
@@ -164,7 +196,7 @@ prop_shift_left xs = forAll (choose (0,genericLength xs - 1)) $ \x0 -> unsafePer
 -- AUTOGEN END
 B
 !;
-  is($out, $want, 'generateHaskell arr i');
+  eq_or_diff($out, $want, 'generateHaskell arr i');
 }
 {
   my $in = qq!A\n-- AUTOGEN BEGIN\nfoo\n-- AUTOGEN END\nB\n!;
@@ -192,7 +224,7 @@ prop_shift_left xs (Fn2 p) = unsafePerformIO $ do
 -- AUTOGEN END
 B
 !;
-  is($out, $want, 'generateHaskell arr p');
+  eq_or_diff($out, $want, 'generateHaskell arr p');
 }
 {
   my $in = qq!A\n-- AUTOGEN BEGIN\nfoo\n-- AUTOGEN END\nB\n!;
@@ -220,7 +252,7 @@ prop_shift_left xs (Fn p) = unsafePerformIO $ do
 -- AUTOGEN END
 B
 !;
-  is($out, $want, 'generateHaskell arr p');
+  eq_or_diff($out, $want, 'generateHaskell arr p');
 }
 
 # generateCWrappers
@@ -254,7 +286,7 @@ extern "C" {
 
 };
 !;
-    is($out, $want, 'generateCWrappers base case');
+    eq_or_diff($out, $want, 'generateCWrappers base case');
 }
 {
     my $in = qq!A\nextern "C" {\nfoo\n};\n!;
@@ -274,7 +306,7 @@ extern "C" {
 
 };
 !;
-    is($out, $want, 'generateCWrappers arr');
+    eq_or_diff($out, $want, 'generateCWrappers arr');
 }
 {
   my $in = q!extern "C" {
@@ -295,7 +327,7 @@ extern "C" {
 
 };
 !;
-  is($out, $want, 'generateCWrappers arr val0 val1');
+  eq_or_diff($out, $want, 'generateCWrappers arr val0 val1');
 }
 {
     my $in = qq!A\nextern "C" {\nfoo\n};\n!;
@@ -315,7 +347,7 @@ extern "C" {
 
 };
 !;
-    is($out, $want, 'generateCWrappers arr comp');
+    eq_or_diff($out, $want, 'generateCWrappers arr comp');
 }
 {
     my $in = qq!A\nextern "C" {\nfoo\n};\n!;
@@ -335,7 +367,7 @@ extern "C" {
 
 };
 !;
-    is($out, $want, 'generateCWrappers arr p');
+    eq_or_diff($out, $want, 'generateCWrappers arr p');
 }
 {
     my $in = qq!A\nextern "C" {\nfoo\n};\n!;
@@ -355,7 +387,7 @@ extern "C" {
 
 };
 !;
-    is($out, $want, 'generateCWrappers arr xs ys');
+    eq_or_diff($out, $want, 'generateCWrappers arr xs ys');
 }
 
 # cleanHaskell
@@ -381,7 +413,7 @@ main :: IO ()
 main = do
     pure ()
 !;
-  is($out, $want, 'cleanHaskell base case');
+  eq_or_diff($out, $want, 'cleanHaskell base case');
 }
 
 # cleanC
@@ -411,7 +443,7 @@ extern "C" {
 extern "C" {
 };
 !;
-    is($out, $want, 'cleanC base case');
+    eq_or_diff($out, $want, 'cleanC base case');
 }
 
 # findImpl
@@ -444,7 +476,7 @@ auto my_partition_point(auto f, auto l, auto p) {
 }
 !;
   my $impl = generate::findImpl($f_in, 'my_is_partitioned');
-  is($impl, $want, 'findImpl base case');
+  eq_or_diff($impl, $want, 'findImpl base case');
 }
 
 # insert
@@ -496,7 +528,7 @@ extern "C" {
 };
 !;
   generate::insert($f_db, $f_in, $f_out, 'my_partition_point');
-  is($out, $want, 'insert base case');
+  eq_or_diff($out, $want, 'insert base case');
 }
 
 done_testing();

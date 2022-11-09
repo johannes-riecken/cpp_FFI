@@ -2,12 +2,13 @@ import Data.List hiding (find)
 import Foreign.C
 import Foreign.Ptr
 import Foreign.Marshal.Array
-import Test.QuickCheck
+import Test.QuickCheck hiding (generate)
 import System.IO.Unsafe
 import Data.Function.Pointless
 import Data.Maybe (listToMaybe)
 import Control.Monad (guard)
 import Data.List.Extra (takeEnd)
+import Data.IORef
 
 instance CoArbitrary CInt where
   coarbitrary = coarbitraryIntegral
@@ -25,7 +26,16 @@ type UnaryPred = CInt -> CBool
 foreign import ccall "wrapper"
     mkUnaryPred :: UnaryPred -> IO (FunPtr UnaryPred)
 
-type Generator = IO CBool
+type Generator = IO CInt
+type StateFn = CInt -> (CInt,CInt)
+
+stateFnToIORef :: StateFn -> IORef CInt -> IO CInt
+stateFnToIORef f s_ref = do
+    s <- readIORef s_ref
+    let (a,s') = f s
+    writeIORef s_ref s'
+    pure a
+
 foreign import ccall "wrapper"
     mkGenerator :: Generator -> IO (FunPtr Generator)
 

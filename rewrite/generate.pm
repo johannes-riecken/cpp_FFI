@@ -31,6 +31,7 @@ my %ret_types = (
   'equal' => 'bool',
   'find' => 'int',
   'find_if' => 'int',
+  'generate' => 'void',
   'is_partitioned' => 'bool',
   'is_sorted' => 'bool',
   'is_sorted_until' => 'int',
@@ -49,21 +50,31 @@ sub myPrefix {
 
 sub isPredicate {
   my ($fn) = @_;
-  return $fn eq 'comp' || $fn eq 'p';
+  return $fn eq 'comp' || $fn eq 'p' || $fn eq 'gen';
+}
+
+sub isFunction {
+  my ($fn) = @_;
+  return $fn eq 'comp' || $fn eq 'p' || $fn eq 'gen';
 }
 
 my %pred_types = (
   'comp' => 'Compare',
   'p' => 'UnaryPred',
+  'gen' => 'Generator',
 );
 
 my %pred_qc_types = (
   'comp' => 'Fun (CInt,CInt) CBool',
   'p' => 'Fun CInt CBool',
+  'gen' => 'Fun CInt (CInt,CInt)',
 );
 
 sub predCTypes {
   my ($fn) = @_;
+  if ($fn eq 'gen') {
+    return 'int (*gen)()';
+  }
   my (undef, $param_types, $ret_type) = split / /, $pred_qc_types{$fn};
   if ('(' eq substr $param_types, 0, 1) {
     $param_types = substr $param_types, 1, -1;
@@ -89,6 +100,11 @@ sub forAllSpec {
   return (grep { $_ eq 'i' } $_[0]->@*) ? 'forAll (choose (0,genericLength xs - 1)) $ \x0 -> ' : ''
 }
 
+sub hasGen {
+  my ($params) = @_;
+  return grep { $_ eq 'gen' } $params->@*;
+}
+
 sub generateProperties {
   my ($fn, $params, $is_arr) = @_;
   my $ret = '';
@@ -100,6 +116,7 @@ sub generateProperties {
   $ret .= "prop_$fn :: @{[toPropTypeSpec($params)]}\n";
   $ret .= "prop_$fn @{[toPropParamsStr(\@types)]} = ";
   $ret .= forAllSpec($params) . "unsafePerformIO \$ do\n";
+  my $has_gen = !!0;
   my @list_names = qw(xs ys);
   for ($params->@*) {
       if ($_ eq 'f') {
@@ -111,15 +128,24 @@ sub generateProperties {
             $ret .= "    $name' <- newArray $name\n";
           }
       } elsif (isPredicate($_)) {
-          $ret .= "    cmp <- @{[mkPred($_)]} p\n";
+          if ($_ eq 'gen') {
+            $has_gen = !!1;
+          } else {
+            $ret .= "    cmp <- @{[mkPred($_)]} p\n";
+          }
       }
   }
   my $call_params = toCallParamsStr($params);
   if ($is_arr) {
-    my $call_params0 = toCallParamsStr($params, 0);
-    $ret .= "    $fn $call_params0\n";
-    my $call_params1 = toCallParamsStr($params, 1);
-    $ret .= "    arr_$fn $call_params1\n";
+    my @prefixes = ('', 'arr_');
+    for (0..1) {
+      my $call_params = toCallParamsStr($params, $_);
+      if ($has_gen) {
+        $ret .= "    x_ref <- newIORef 0\n";
+        $ret .= "    cmp <- mkGenerator \$ stateFnToIORef p x_ref\n";
+      }
+      $ret .= "    $prefixes[$_]$fn $call_params\n";
+    }
     $ret .= "    xs0' <- peekArray (length xs) xs0\n";
     $ret .= "    xs1' <- peekArray (length xs) xs1\n";
     $ret .= "    pure \$ xs0' === xs1'\n";
@@ -348,6 +374,8 @@ sub toPropParams {
             push @params, '(Fn2 p)';
         } elsif ($_ eq 'Fun CInt CBool') {
             push @params, '(Fn p)';
+        } elsif ($_ eq 'Fun CInt (CInt,CInt)') {
+          push @params, '(Fn p)';
         } elsif ($_ eq 'CInt') {
             push @params, "x$i_x";
             $i_x++;

@@ -93,6 +93,12 @@ auto arr_replace(auto f, auto l, auto val0, auto val1) {
      });
 }
 
+auto arr_generate(auto f, auto l, auto gen) {
+  std::transform(f, l, [&](int a) {
+      return gen();
+      });
+}
+
 extern "C" {
 };
 
