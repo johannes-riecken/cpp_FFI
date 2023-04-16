@@ -4,6 +4,7 @@
 #include <functional>
 #include <fmt/core.h>
 #include <iterator>
+#include <ranges>
 
 auto my_adjacent_find(auto f, auto l, auto comp) {
     return std::mismatch(f, std::prev(l), std::next(f), std::not_fn(comp)).first;
@@ -79,6 +80,12 @@ auto my_find(auto f, auto l, auto val) {
     return std::find_if(f, l, [&](auto e) { return e == val; });
 }
 
+auto my_is_permutation(auto f, auto l, auto f2) {
+    std::sort(f, l);
+    std::sort(f2, f2 + std::distance(f, l));
+    return std::equal(f, l, f2);
+}
+
 // modifying
 auto arr_shift_left(auto f, auto l, auto i) {
     return std::copy(f + i, l, f);
@@ -111,8 +118,34 @@ auto arr_reverse(auto f, auto l) {
         f + std::distance(f, l) / 2,
         std::reverse_iterator(l),
         f,
-        [&](auto acc, auto x) { return ++acc; },
+        [&](auto acc, auto x) { return acc; },
         [&](auto &a, auto &b) { std::swap(a, b); return 0; });
+}
+
+auto arr_copy_if(auto f, auto l, auto f2, auto p) {
+    std::ranges::subrange(f, l) | std::ranges::views::filter(p) |
+        std::ranges::copy(f2);
+}
+
+auto arr_iota(auto f, auto l, auto val) {
+    auto ints = std::ranges::views::iota(val);
+    std::ranges::copy_n(ints.begin(), std::distance(f, l), f);
+}
+
+auto arr_partition(auto f, auto l, auto p) {
+    auto rng = std::ranges::subrange(f, l);
+    auto filtered = std::ranges::views::filter(rng, p);
+    auto non = std::ranges::views::filter(rng, std::not_fn(p));
+    auto it = std::ranges::copy(filtered, f);
+    std::ranges::copy(non, it.out);
+}
+
+auto arr_partial_sum(auto f, auto l, auto f2) {
+    std::inclusive_scan(f, l, f2);
+}
+
+auto arr_exclusive_scan(auto f, auto l, auto f2, auto val) {
+    std::inclusive_scan(f, l, f2);
 }
 
 extern "C" {
